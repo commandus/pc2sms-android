@@ -2,9 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.commandus.pc2sms">
 
-    <uses-permission android:name="android.permission.INTERNET" /> <!-- auto-start -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- auto-start -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.QUICKBOOT_POWERON" />
+    <!-- send SMS -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
 
     <application
         android:allowBackup="true"

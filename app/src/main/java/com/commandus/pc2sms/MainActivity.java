@@ -1,23 +1,34 @@
 package com.commandus.pc2sms;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
+import android.Manifest;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.telephony.SmsManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.RadioGroup;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import io.grpc.pc2sms.SMS;
 
 public class MainActivity extends AppCompatActivity
     implements ServiceConnection, ServiceListener {
 
     private static final String TAG = "pc2sms-main-activity";
+    private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 1;
 
     TextView textViewMessage;
     EditText editTextServiceAddress;
@@ -66,8 +77,26 @@ public class MainActivity extends AppCompatActivity
         editTextUserName.addTextChangedListener(mTextWatcher);
         editTextPassword.addTextChangedListener(mTextWatcher);
 
+        switchAllowSendSMS.setOnCheckedChangeListener(new Switch.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                toggleService(b);
+            }
+        });
+
         startService(new Intent(this, SendSMSService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
     }
+
+    private void toggleService(boolean on) {
+        if (on) {
+            checkPermission();
+        } else {
+            Intent intent = new Intent(MainActivity.this, SendSMSService.class);
+            intent.setAction(SendSMSService.ACTION_STOP);
+            startService(intent);
+        }
+    }
+
 
     private void load() {
         editTextServiceAddress.setText(mSettings.getAddress());
@@ -117,5 +146,36 @@ public class MainActivity extends AppCompatActivity
     public void onError(Exception e) {
         textViewMessage.setText(e.getMessage());
     }
+
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_SEND_SMS: {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Intent intent = new Intent(MainActivity.this, SendSMSService.class);
+                    intent.setAction(SendSMSService.ACTION_START);
+                    startService(intent);
+                    Toast.makeText(this, "Granted", Toast.LENGTH_LONG);
+                } else {
+                    Toast.makeText(this, "Not granted", Toast.LENGTH_LONG);
+                    return;
+                }
+            }
+        }
+    }
+
+    public void checkPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.SEND_SMS)) {
+            } else {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.SEND_SMS},
+                        MY_PERMISSIONS_REQUEST_SEND_SMS);
+            }
+        }
+    }
+
 
 }

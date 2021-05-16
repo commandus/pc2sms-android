@@ -1,24 +1,32 @@
 package com.commandus.pc2sms;
 
+import android.Manifest;
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.telephony.SmsManager;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import java.util.Iterator;
 
-import io.grpc.okhttp.OkHttpChannelBuilder;
+import io.grpc.ManagedChannelBuilder;
 import io.grpc.pc2sms.*;
 
 import io.grpc.ManagedChannel;
 
 public class SendSMSService extends Service {
+    public static final String ACTION_START = "start";
+    public static final String ACTION_STOP = "stop";
     private static final String TAG = "send-sms-service";;
+
     private ServiceListener listener;
 
 
@@ -46,8 +54,29 @@ public class SendSMSService extends Service {
     public void onCreate() {
         super.onCreate();
         log("send sms service created");
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        String a = intent.getAction();
+        if (a == ACTION_START) {
+            start();
+        }
+        if (a == ACTION_STOP) {
+            stop();
+        }
+
+        return START_STICKY;
+    }
+
+    private void start() {
         listen();
     }
+
+    private void stop() {
+
+    }
+
 
     @Override
     public void onDestroy() {
@@ -102,10 +131,11 @@ public class SendSMSService extends Service {
 
     public void listen() {
         try {
-            ManagedChannel mChannel = OkHttpChannelBuilder.forAddress("157.230.125.14", 50053)
+            Settings mSettings = Settings.getSettings(this);
+            ManagedChannel mChannel = ManagedChannelBuilder.forAddress(mSettings.getAddress(), mSettings.getPort())
+                    .usePlaintext()
                     .build();
             smsGrpc.smsBlockingStub mStub = smsGrpc.newBlockingStub(mChannel);
-            Settings mSettings = Settings.getSettings(this);
             Credentials c = Credentials.newBuilder()
                     .setLogin(mSettings.getUser())
                     .setPassword(mSettings.getPassword())
@@ -118,20 +148,26 @@ public class SendSMSService extends Service {
             log("listen error "  + e.getMessage());
         }
     }
+
+    public void sendSMSMessage(SMS value) {
+        SmsManager smsManager = SmsManager.getDefault();
+        smsManager.sendTextMessage(value.getPhone(), null, value.getMessage(), null, null);
+    }
     public void sendSMS(SMS value) {
-        try {
-            synchronized (this) {
-                if (listener != null) {
-                    mainLooper.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (listener != null) {
-                                listener.onInfo("Отправлено: '"
-                                        + value.getMessage()
-                                        + "' на " + value.getPhone());
-                            }
+    try {
+        synchronized (this) {
+            sendSMSMessage(value);
+            if (listener != null) {
+                mainLooper.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (listener != null) {
+                            listener.onInfo("Отправлено: '"
+                                    + value.getMessage()
+                                    + "' на " + value.getPhone());
                         }
-                    });
+                    }
+                });
                 }
             }
         } catch (final Exception e) {
