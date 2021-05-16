@@ -28,7 +28,7 @@ public class Settings {
     private String mLogin;
     private String mPassword;
 
-    public String getAdress() {
+    public String getAddress() {
         return mAddress;
     }
     public int getPort() {
@@ -66,7 +66,7 @@ public class Settings {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString(PREF_SERVICE_ADDRESS, mAddress);
-        editor.putInt(PREF_LOGIN, mPort);
+        editor.putInt(PREF_SERVICE_PORT, mPort);
         editor.putString(PREF_LOGIN, mLogin);
         editor.putString(PREF_PASSWORD, mPassword);
         editor.apply();

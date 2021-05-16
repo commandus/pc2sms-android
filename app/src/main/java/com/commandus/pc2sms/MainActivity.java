@@ -57,13 +57,23 @@ public class MainActivity extends AppCompatActivity
         editTextPassword = findViewById(R.id.editTextPassword);
         switchAllowSendSMS = findViewById(R.id.switchAllowSendSMS);
 
+        mSettings = Settings.getSettings(this);
+
+        load();
+
         editTextServiceAddress.addTextChangedListener(mTextWatcher);
         editTextServicePort.addTextChangedListener(mTextWatcher);
         editTextUserName.addTextChangedListener(mTextWatcher);
         editTextPassword.addTextChangedListener(mTextWatcher);
 
-        mSettings = Settings.getSettings(this);
         startService(new Intent(this, SendSMSService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
+    }
+
+    private void load() {
+        editTextServiceAddress.setText(mSettings.getAddress());
+        editTextServicePort.setText(Integer.toString(mSettings.getPort()));
+        editTextUserName.setText(mSettings.getUser());
+        editTextPassword.setText(mSettings.getPassword());
     }
 
     private void save() {
