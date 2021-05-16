@@ -23,13 +23,27 @@
         app:layout_constraintGuide_percent="0.5"
         />
 
-    <Switch
-        android:id="@+id/switchAllowSendSMS"
+    <EditText
+        android:id="@+id/editTextUserName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Отправлять СМС"
-        app:layout_constraintBottom_toTopOf="@+id/guideline"
-        app:layout_constraintEnd_toEndOf="@+id/editTextServicePort" />
+        android:ems="10"
+        android:inputType="text"
+        android:hint="Логин"
+        app:layout_constraintBottom_toTopOf="@+id/editTextPassword"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <EditText
+        android:id="@+id/editTextPassword"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:hint="Пароль"
+        android:inputType="textPassword"
+        app:layout_constraintBottom_toTopOf="@+id/editTextServiceAddress"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
     <EditText
         android:id="@+id/editTextServiceAddress"
@@ -38,7 +52,7 @@
         android:width="60pt"
         android:ems="10"
         android:inputType="text"
-        android:text="адрес"
+        android:hint="Адрес"
         app:layout_constraintBottom_toTopOf="@+id/switchAllowSendSMS"
         app:layout_constraintStart_toStartOf="@+id/editTextPassword" />
 
@@ -50,29 +64,16 @@
         android:width="40pt"
         android:ems="10"
         android:inputType="number"
-        android:text="порт"
+        android:hint="Порт"
         app:layout_constraintBottom_toTopOf="@+id/switchAllowSendSMS"
         app:layout_constraintStart_toEndOf="@+id/editTextServiceAddress" />
 
-    <EditText
-        android:id="@+id/editTextPassword"
+    <Switch
+        android:id="@+id/switchAllowSendSMS"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:ems="10"
-        android:inputType="textPassword"
-        app:layout_constraintBottom_toTopOf="@+id/editTextServiceAddress"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <EditText
-        android:id="@+id/editTextUserName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:ems="10"
-        android:inputType="text"
-        android:text="Логин"
-        app:layout_constraintBottom_toTopOf="@+id/editTextPassword"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:text="Отправлять СМС"
+        app:layout_constraintBottom_toTopOf="@+id/guideline"
+        app:layout_constraintEnd_toEndOf="@+id/editTextServicePort" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

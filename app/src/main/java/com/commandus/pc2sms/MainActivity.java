@@ -14,7 +14,7 @@ import android.widget.EditText;
 import android.widget.Switch;
 import android.widget.TextView;
 
-public abstract class MainActivity<mTextWatcher> extends AppCompatActivity
+public class MainActivity extends AppCompatActivity
     implements ServiceConnection, ServiceListener {
 
     private static final String TAG = "pc2sms-main-activity";
