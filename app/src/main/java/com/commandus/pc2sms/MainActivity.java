@@ -6,23 +6,19 @@ import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.telephony.SmsManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.widget.CompoundButton;
 import android.widget.EditText;
-import android.widget.RadioGroup;
 import android.widget.Switch;
 import android.widget.TextView;
-import android.widget.Toast;
-
-import io.grpc.pc2sms.SMS;
 
 public class MainActivity extends AppCompatActivity
     implements ServiceConnection, ServiceListener {
@@ -55,6 +51,7 @@ public class MainActivity extends AppCompatActivity
         }
     };
 
+    private boolean mBound = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,13 +84,30 @@ public class MainActivity extends AppCompatActivity
         startService(new Intent(this, SendSMSService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+        // Bind to LocalService
+        bindService(new Intent(this, SendSMSService.class), this, Context.BIND_AUTO_CREATE);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // Unbind from the service
+        if (mBound) {
+            unbindService(this);
+            mBound = false;
+        }
+    }
+    
     private void toggleService(boolean on) {
         if (on) {
             checkPermission();
         } else {
             Intent intent = new Intent(MainActivity.this, SendSMSService.class);
-            intent.setAction(SendSMSService.ACTION_STOP);
-            startService(intent);
+            // intent.setAction(SendSMSService.ACTION_STOP);
+            stopService(intent);
         }
     }
 
@@ -116,19 +130,19 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onServiceConnected(ComponentName name, IBinder binder) {
         Log.d(TAG, "service connect..");
-        service = ((SendSMSService.SerialBinder) binder).getService();
+        service = ((SendSMSService.SendSMSBinder) binder).getService();
         service.attach(this);
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                textViewMessage.setText("service connected.");
-            }
-        });
+        if (switchAllowSendSMS != null) {
+            switchAllowSendSMS.setChecked(service.isListening);
+        }
+
+        mBound = true;
     }
 
     @Override
     public void onServiceDisconnected(ComponentName name) {
         Log.d(TAG, "disconnected");
+        mBound = false;
         service = null;
     }
 
@@ -153,20 +167,22 @@ public class MainActivity extends AppCompatActivity
         switch (requestCode) {
             case MY_PERMISSIONS_REQUEST_SEND_SMS: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    Intent intent = new Intent(MainActivity.this, SendSMSService.class);
-                    intent.setAction(SendSMSService.ACTION_START);
-                    startService(intent);
-                    Toast.makeText(this, "Granted", Toast.LENGTH_LONG);
-                } else {
-                    Toast.makeText(this, "Not granted", Toast.LENGTH_LONG);
-                    return;
+                    turnOn();
                 }
             }
         }
     }
 
+    private void turnOn() {
+        Intent intent = new Intent(MainActivity.this, SendSMSService.class);
+        intent.setAction(SendSMSService.ACTION_START);
+        startService(intent);
+    }
+
     public void checkPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED) {
+            turnOn();
+        } else {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this,
                     Manifest.permission.SEND_SMS)) {
             } else {
@@ -176,6 +192,5 @@ public class MainActivity extends AppCompatActivity
             }
         }
     }
-
 
 }
