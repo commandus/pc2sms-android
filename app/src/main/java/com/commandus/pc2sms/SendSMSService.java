@@ -1,5 +1,6 @@
 package com.commandus.pc2sms;
 
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Binder;
@@ -152,7 +153,10 @@ public class SendSMSService extends Service {
     
     public void sendSMSMessage(SMS value) {
         SmsManager smsManager = SmsManager.getDefault();
-        smsManager.sendTextMessage(value.getPhone(), null, value.getMessage(), null, null);
+        PendingIntent sentPI;
+        String SENT = "SMS_SENT";
+        sentPI = PendingIntent.getBroadcast(this, 0,new Intent(SENT), 0);
+        smsManager.sendTextMessage(value.getPhone(), null, value.getMessage(), sentPI, null);
     }
     public void sendSMS(SMS value) {
     try {
