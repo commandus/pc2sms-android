@@ -1,12 +1,15 @@
 package com.commandus.pc2sms;
 
+import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.telephony.SmsManager;
 import android.util.Log;
 
@@ -30,7 +33,6 @@ public class SendSMSService extends Service {
     private ServiceListener listener;
     private static boolean mStopRequest = false;
 
-
     class SendSMSBinder extends Binder {
         SendSMSService getService() {
             return SendSMSService.this;
@@ -44,7 +46,6 @@ public class SendSMSService extends Service {
      * Lifecylce
      */
     public SendSMSService() {
-        log("Сервис отправки СМС создан");
         mainLooper = new Handler(Looper.getMainLooper());
         binder = new SendSMSBinder();
     }
@@ -53,6 +54,7 @@ public class SendSMSService extends Service {
     public void onCreate() {
         super.onCreate();
         log("Сервис отправки СМС...");
+        startListenSMS();
     }
 
     @Override
@@ -86,7 +88,6 @@ public class SendSMSService extends Service {
         log("attached");
         if (Looper.getMainLooper().getThread() != Thread.currentThread())
             throw new IllegalArgumentException("not in main thread");
-        stopListenSMS();
         synchronized (this) {
             this.listener = listener;
         }
@@ -123,12 +124,15 @@ public class SendSMSService extends Service {
     }
 
     public void startListenSMS() {
-        mThread = new Thread(new Runnable() {
-            public void run(){
-                listenSMS();
-            }
-        });
-        mThread.start();
+        if (mThread == null) {
+            mThread = new Thread(new Runnable() {
+                public void run() {
+                    mStopRequest = false;
+                    listenSMS();
+                }
+            });
+            mThread.start();
+        }
     }
 
     public void listenSMS() {
@@ -152,12 +156,14 @@ public class SendSMSService extends Service {
                 Iterator<SMS> iter = mStub.listenSMSToSend(c);
                 log("listen..");
                 isListening = true;
-                failureCount = 0;
                 while (iter.hasNext()) {
+                    failureCount = 0;
                     sendSMS(iter.next());
                 }
             } catch (Throwable e) {
-                if (!mStopRequest) {
+                if (mStopRequest) {
+                    log("listening interrupted");
+                } else {
                     failureCount++;
                     log("listen error " + e.getMessage());
                 }
@@ -166,6 +172,7 @@ public class SendSMSService extends Service {
         log("stop listening");
         mStopRequest = false;
         isListening = false;
+        mThread = null;
     }
     
     public void sendSMSMessage(SMS value) {
@@ -208,6 +215,23 @@ public class SendSMSService extends Service {
                 }
             }
         }
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        log("Сервис СМС был удален");
+        Intent restartServiceIntent = new Intent(getApplicationContext(), this.getClass());
+        restartServiceIntent.setPackage(getPackageName());
+        restartServiceIntent.setAction(ACTION_START);
+
+        PendingIntent restartServicePendingIntent = PendingIntent.getService(getApplicationContext(), 1, restartServiceIntent, PendingIntent.FLAG_ONE_SHOT);
+        AlarmManager alarmService = (AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
+        alarmService.set(
+                AlarmManager.ELAPSED_REALTIME,
+                SystemClock.elapsedRealtime() + 1000,
+                restartServicePendingIntent);
+
+        super.onTaskRemoved(rootIntent);
     }
 
 }

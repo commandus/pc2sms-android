@@ -51,6 +51,13 @@ public class MainActivity extends AppCompatActivity
         }
     };
 
+    private Switch.OnCheckedChangeListener mServiceOnListeber = new Switch.OnCheckedChangeListener() {
+        @Override
+        public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+            toggleService(b);
+        }
+    };
+
     private boolean mBound = false;
 
     @Override
@@ -74,19 +81,13 @@ public class MainActivity extends AppCompatActivity
         editTextUserName.addTextChangedListener(mTextWatcher);
         editTextPassword.addTextChangedListener(mTextWatcher);
 
-        switchAllowSendSMS.setOnCheckedChangeListener(new Switch.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                toggleService(b);
-            }
-        });
-
         startService(new Intent(this, SendSMSService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListeber);
         // Bind to LocalService
         bindService(new Intent(this, SendSMSService.class), this, Context.BIND_AUTO_CREATE);
     }
@@ -94,6 +95,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onStop() {
         super.onStop();
+        switchAllowSendSMS.setOnCheckedChangeListener(null);
         // Unbind from the service
         if (mBound) {
             unbindService(this);
@@ -106,8 +108,10 @@ public class MainActivity extends AppCompatActivity
             checkPermission();
         } else {
             Intent intent = new Intent(MainActivity.this, SendSMSService.class);
-            // intent.setAction(SendSMSService.ACTION_STOP);
-            stopService(intent);
+            intent.setAction(SendSMSService.ACTION_STOP);
+            startService(intent);
+            // Intent intent = new Intent(MainActivity.this, SendSMSService.class);
+            // stopService(intent);
         }
     }
 
@@ -133,7 +137,9 @@ public class MainActivity extends AppCompatActivity
         service = ((SendSMSService.SendSMSBinder) binder).getService();
         service.attach(this);
         if (switchAllowSendSMS != null) {
+            switchAllowSendSMS.setOnCheckedChangeListener(null);
             switchAllowSendSMS.setChecked(service.isListening);
+            switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListeber);
         }
 
         mBound = true;
@@ -152,18 +158,18 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void addMessageLine(String value) {
+        if (value == null)
+            return;
+        if (value.isEmpty())
+            return;
         String s = textViewMessage.getText().toString();
         String lines[] = s.split("\\r?\\n");
-        int c = lines.length;
-        if (c >= 5) {
-            String[] lines4 = new String[5];
-            for (int i = c - 5, k = 0; i < 5; i++) {
-                lines4[k++] = lines[i];
-            }
-            lines = lines4;
-        }
         StringBuilder b = new StringBuilder();
-        for (int i = 0; i < lines.length; i++) {
+        int c = lines.length;
+        int f = c - 5;
+        if (f < 0)
+            f = 0;
+        for (int i = f; i < c; i++) {
             b.append(lines[i]).append('\n');
         }
         b.append(value);

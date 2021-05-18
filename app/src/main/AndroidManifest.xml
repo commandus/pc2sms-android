@@ -25,7 +25,11 @@
         <activity android:name=".AboutActivity">
         </activity>
 
-        <service android:name=".SendSMSService" /> <!-- start up service on boot -->
+        <service
+            android:name=".SendSMSService"
+            android:enabled="true"
+            />
+        <!-- start up service on boot -->
         <receiver android:name=".ReceiverBoot">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
