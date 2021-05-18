@@ -148,19 +148,37 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onSent(String value) {
-        textViewMessage.setText(value);
+        addMessageLine(value);
+    }
+
+    private void addMessageLine(String value) {
+        String s = textViewMessage.getText().toString();
+        String lines[] = s.split("\\r?\\n");
+        int c = lines.length;
+        if (c >= 5) {
+            String[] lines4 = new String[5];
+            for (int i = c - 5, k = 0; i < 5; i++) {
+                lines4[k++] = lines[i];
+            }
+            lines = lines4;
+        }
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < lines.length; i++) {
+            b.append(lines[i]).append('\n');
+        }
+        b.append(value);
+        textViewMessage.setText(b.toString());
     }
 
     @Override
     public void onInfo(String value) {
-        textViewMessage.setText(value);
+        addMessageLine(value);
     }
 
     @Override
     public void onError(Exception e) {
-        textViewMessage.setText(e.getMessage());
+        addMessageLine(e.getMessage());
     }
-
 
     @Override
     public void onRequestPermissionsResult(int requestCode,String permissions[], int[] grantResults) {

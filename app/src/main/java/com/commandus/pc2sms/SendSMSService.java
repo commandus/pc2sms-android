@@ -24,10 +24,11 @@ public class SendSMSService extends Service {
     public static final String ACTION_STOP = "stop";
     private static final String TAG = "send-sms-service";;
 
-    private Thread mThread;
-
-    private ServiceListener listener;
     public boolean isListening = false;
+
+    private Thread mThread;
+    private ServiceListener listener;
+    private static boolean mStopRequest = false;
 
 
     class SendSMSBinder extends Binder {
@@ -43,7 +44,7 @@ public class SendSMSService extends Service {
      * Lifecylce
      */
     public SendSMSService() {
-        log("send sms service created");
+        log("Сервис отправки СМС создан");
         mainLooper = new Handler(Looper.getMainLooper());
         binder = new SendSMSBinder();
     }
@@ -51,7 +52,7 @@ public class SendSMSService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        log("send sms service created");
+        log("Сервис отправки СМС...");
     }
 
     @Override
@@ -70,19 +71,19 @@ public class SendSMSService extends Service {
     @Override
     public void onDestroy() {
         stopListenSMS();
-        log("send sms service destroyed");
+        log("Сервис отправки СМС завершен");
         super.onDestroy();
     }
 
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        log("send sms service bind");
+        log("Сервис отправки СМС соединен");
         return binder;
     }
 
     public void attach(ServiceListener listener) {
-        log("attach serial listener");
+        log("attached");
         if (Looper.getMainLooper().getThread() != Thread.currentThread())
             throw new IllegalArgumentException("not in main thread");
         stopListenSMS();
@@ -93,7 +94,7 @@ public class SendSMSService extends Service {
 
     public void detach() {
         listener = null;
-        log("detach service");
+        log("detached");
     }
 
     private void log(
@@ -116,6 +117,7 @@ public class SendSMSService extends Service {
 
     private void stopListenSMS() {
         if (mThread != null) {
+            mStopRequest = true;
             mThread.interrupt();
         }
     }
@@ -130,25 +132,40 @@ public class SendSMSService extends Service {
     }
 
     public void listenSMS() {
-        try {
-            Settings mSettings = Settings.getSettings(this);
-            ManagedChannel mChannel = ManagedChannelBuilder.forAddress(mSettings.getAddress(), mSettings.getPort())
-                    .usePlaintext()
-                    .build();
-            smsGrpc.smsBlockingStub mStub = smsGrpc.newBlockingStub(mChannel);
-            Credentials c = Credentials.newBuilder()
-                    .setLogin(mSettings.getUser())
-                    .setPassword(mSettings.getPassword())
-                    .build();
-            Iterator<SMS> iter = mStub.listenSMSToSend(c);
-            isListening = true;
-            while(iter.hasNext()){
-                sendSMS(iter.next());
+        int failureCount = 0;
+        while (!mStopRequest) {
+            try {
+                int sleepTime = failureCount * 1000;
+                if (sleepTime > 2 * 60 * 1000) {
+                    sleepTime = 2 * 60 * 1000; // 2'
+                }
+                Thread.sleep(sleepTime);
+                Settings mSettings = Settings.getSettings(this);
+                ManagedChannel mChannel = ManagedChannelBuilder.forAddress(mSettings.getAddress(), mSettings.getPort())
+                        .usePlaintext()
+                        .build();
+                smsGrpc.smsBlockingStub mStub = smsGrpc.newBlockingStub(mChannel);
+                Credentials c = Credentials.newBuilder()
+                        .setLogin(mSettings.getUser())
+                        .setPassword(mSettings.getPassword())
+                        .build();
+                Iterator<SMS> iter = mStub.listenSMSToSend(c);
+                log("listen..");
+                isListening = true;
+                failureCount = 0;
+                while (iter.hasNext()) {
+                    sendSMS(iter.next());
+                }
+            } catch (Throwable e) {
+                if (!mStopRequest) {
+                    failureCount++;
+                    log("listen error " + e.getMessage());
+                }
             }
-        } catch (Throwable e) {
-            isListening = false;
-            log("listen error "  + e.getMessage());
         }
+        log("stop listening");
+        mStopRequest = false;
+        isListening = false;
     }
     
     public void sendSMSMessage(SMS value) {
@@ -158,6 +175,7 @@ public class SendSMSService extends Service {
         sentPI = PendingIntent.getBroadcast(this, 0,new Intent(SENT), 0);
         smsManager.sendTextMessage(value.getPhone(), null, value.getMessage(), sentPI, null);
     }
+
     public void sendSMS(SMS value) {
     try {
         synchronized (this) {
@@ -176,7 +194,7 @@ public class SendSMSService extends Service {
                 }
             }
         } catch (final Exception e) {
-            log("send error "  + e.getMessage());
+            log("Ошибка отправки СМС  "  + e.getMessage());
             synchronized (this) {
                 if (listener != null) {
                     mainLooper.post(new Runnable() {
