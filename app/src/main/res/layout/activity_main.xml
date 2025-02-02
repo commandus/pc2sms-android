@@ -76,7 +76,7 @@
         app:layout_constraintBottom_toTopOf="@+id/switchAllowSendSMS"
         app:layout_constraintStart_toEndOf="@+id/editTextServiceAddress" />
 
-    <Switch
+    <androidx.appcompat.widget.SwitchCompat
         android:id="@+id/switchAllowSendSMS"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

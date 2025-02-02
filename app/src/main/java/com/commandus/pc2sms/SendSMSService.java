@@ -16,6 +16,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 
 import java.util.Iterator;
+import java.util.Objects;
 
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.pc2sms.*;
@@ -25,7 +26,7 @@ import io.grpc.ManagedChannel;
 public class SendSMSService extends Service {
     public static final String ACTION_START = "start";
     public static final String ACTION_STOP = "stop";
-    private static final String TAG = "send-sms-service";;
+    private static final String TAG = "send-sms-service";
 
     public boolean isListening = false;
 
@@ -60,10 +61,10 @@ public class SendSMSService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         String a = intent.getAction();
-        if (a == ACTION_START) {
+        if (Objects.equals(a, ACTION_START)) {
             startListenSMS();
         }
-        if (a == ACTION_STOP) {
+        if (Objects.equals(a, ACTION_STOP)) {
             stopListenSMS();
         }
 
@@ -99,17 +100,14 @@ public class SendSMSService extends Service {
     }
 
     private void log(
-            final String message
+        final String message
     ) {
         Log.d(TAG, message);
         synchronized (this) {
             if (listener != null) {
-                mainLooper.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (listener != null) {
-                            listener.onInfo(message);
-                        }
+                mainLooper.post(() -> {
+                    if (listener != null) {
+                        listener.onInfo(message);
                     }
                 });
             }
@@ -125,11 +123,9 @@ public class SendSMSService extends Service {
 
     public void startListenSMS() {
         if (mThread == null) {
-            mThread = new Thread(new Runnable() {
-                public void run() {
-                    mStopRequest = false;
-                    listenSMS();
-                }
+            mThread = new Thread(() -> {
+                mStopRequest = false;
+                listenSMS();
             });
             mThread.start();
         }
@@ -179,7 +175,7 @@ public class SendSMSService extends Service {
         SmsManager smsManager = SmsManager.getDefault();
         PendingIntent sentPI;
         String SENT = "SMS_SENT";
-        sentPI = PendingIntent.getBroadcast(this, 0,new Intent(SENT), 0);
+        sentPI = PendingIntent.getBroadcast(this, 0,new Intent(SENT), PendingIntent.FLAG_IMMUTABLE);
         smsManager.sendTextMessage(value.getPhone(), null, value.getMessage(), sentPI, null);
     }
 
@@ -188,14 +184,11 @@ public class SendSMSService extends Service {
         synchronized (this) {
             sendSMSMessage(value);
             if (listener != null) {
-                mainLooper.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (listener != null) {
-                            listener.onInfo("Отправлено: '"
-                                    + value.getMessage()
-                                    + "' на " + value.getPhone());
-                        }
+                mainLooper.post(() -> {
+                    if (listener != null) {
+                        listener.onInfo("Отправлено: '"
+                                + value.getMessage()
+                                + "' на " + value.getPhone());
                     }
                 });
                 }
@@ -204,12 +197,9 @@ public class SendSMSService extends Service {
             log("Ошибка отправки СМС  "  + e.getMessage());
             synchronized (this) {
                 if (listener != null) {
-                    mainLooper.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (listener != null) {
-                                listener.onError(e);
-                            }
+                    mainLooper.post(() -> {
+                        if (listener != null) {
+                            listener.onError(e);
                         }
                     });
                 }
@@ -224,7 +214,8 @@ public class SendSMSService extends Service {
         restartServiceIntent.setPackage(getPackageName());
         restartServiceIntent.setAction(ACTION_START);
 
-        PendingIntent restartServicePendingIntent = PendingIntent.getService(getApplicationContext(), 1, restartServiceIntent, PendingIntent.FLAG_ONE_SHOT);
+        PendingIntent restartServicePendingIntent = PendingIntent.getService(getApplicationContext(), 1,
+                restartServiceIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_ONE_SHOT);
         AlarmManager alarmService = (AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
         alarmService.set(
                 AlarmManager.ELAPSED_REALTIME,

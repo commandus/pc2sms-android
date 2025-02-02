@@ -13,8 +13,9 @@ public class ReceiverBoot extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        String a = intent.getAction();
         Log.d(TAG, "device rebooted, auto-start");
         context.startService(new Intent(context, SendSMSService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
-        Log.d(TAG, "Service started");
+        Log.d(TAG, "Service started " + a);
     }
 }

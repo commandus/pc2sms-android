@@ -1,5 +1,6 @@
 package com.commandus.pc2sms;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -15,9 +16,8 @@ import android.os.IBinder;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
-import android.widget.CompoundButton;
 import android.widget.EditText;
-import android.widget.Switch;
+import androidx.appcompat.widget.SwitchCompat;
 import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity
@@ -31,12 +31,12 @@ public class MainActivity extends AppCompatActivity
     EditText editTextServicePort;
     EditText editTextUserName;
     EditText editTextPassword;
-    Switch switchAllowSendSMS;
+    SwitchCompat switchAllowSendSMS;
 
     private SendSMSService service;
     private Settings mSettings;
 
-    private TextWatcher mTextWatcher = new TextWatcher() {
+    private final TextWatcher mTextWatcher = new TextWatcher() {
         @Override
         public void beforeTextChanged(CharSequence s, int start, int count, int after) {
         }
@@ -51,12 +51,7 @@ public class MainActivity extends AppCompatActivity
         }
     };
 
-    private Switch.OnCheckedChangeListener mServiceOnListeber = new Switch.OnCheckedChangeListener() {
-        @Override
-        public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-            toggleService(b);
-        }
-    };
+    private final SwitchCompat.OnCheckedChangeListener mServiceOnListeber = (compoundButton, b) -> toggleService(b);
 
     private boolean mBound = false;
 
@@ -125,7 +120,7 @@ public class MainActivity extends AppCompatActivity
 
     private void save() {
         mSettings.setAddress(editTextServiceAddress.getText().toString());
-        mSettings.setPort(Integer.valueOf(editTextServicePort.getText().toString()));
+        mSettings.setPort(Integer.parseInt(editTextServicePort.getText().toString()));
         mSettings.setUser(editTextUserName.getText().toString());
         mSettings.setPassword(editTextPassword.getText().toString());
         mSettings.save();
@@ -163,7 +158,7 @@ public class MainActivity extends AppCompatActivity
         if (value.isEmpty())
             return;
         String s = textViewMessage.getText().toString();
-        String lines[] = s.split("\\r?\\n");
+        String[] lines = s.split("\\r?\\n");
         StringBuilder b = new StringBuilder();
         int c = lines.length;
         int f = c - 5;
@@ -187,12 +182,11 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode,String permissions[], int[] grantResults) {
-        switch (requestCode) {
-            case MY_PERMISSIONS_REQUEST_SEND_SMS: {
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    turnOn();
-                }
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == MY_PERMISSIONS_REQUEST_SEND_SMS) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                turnOn();
             }
         }
     }
@@ -207,9 +201,7 @@ public class MainActivity extends AppCompatActivity
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED) {
             turnOn();
         } else {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.SEND_SMS)) {
-            } else {
+            if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.SEND_SMS)) {
                 ActivityCompat.requestPermissions(this,
                         new String[]{Manifest.permission.SEND_SMS},
                         MY_PERMISSIONS_REQUEST_SEND_SMS);
