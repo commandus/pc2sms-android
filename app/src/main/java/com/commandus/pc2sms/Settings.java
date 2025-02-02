@@ -3,6 +3,7 @@ package com.commandus.pc2sms;
 import android.content.Context;
 import android.content.SharedPreferences;
 import androidx.preference.PreferenceManager;
+// import androidx.core.content.PackageManagerCompat;
 
 
 public class Settings {
@@ -82,6 +83,11 @@ public class Settings {
             mSettings = new Settings(context);
         }
         return mSettings;
+    }
+
+    public void requestDisableSleep() {
+        // PackageManagerCompat.getUnusedAppRestrictionsStatus(mContext).get();
+
     }
 
 }
