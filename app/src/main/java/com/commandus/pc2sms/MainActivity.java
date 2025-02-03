@@ -1,6 +1,7 @@
 package com.commandus.pc2sms;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -19,12 +20,14 @@ import android.util.Log;
 import android.widget.EditText;
 import androidx.appcompat.widget.SwitchCompat;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity
     implements ServiceConnection, ServiceListener {
 
     private static final String TAG = "pc2sms-main-activity";
-    private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 1;
+    private static final int REQUEST_PERMISSION_SEND_SMS = 1;
+    private static final int REQUEST_PERMISSION_SLEEP_DISABLE = 2;
 
     TextView textViewMessage;
     EditText editTextServiceAddress;
@@ -85,6 +88,7 @@ public class MainActivity extends AppCompatActivity
         switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListeber);
         // Bind to LocalService
         bindService(new Intent(this, SendSMSService.class), this, Context.BIND_AUTO_CREATE);
+        Settings.requestDisableSleep(this, REQUEST_PERMISSION_SLEEP_DISABLE);
     }
 
     @Override
@@ -182,12 +186,31 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch (requestCode) {
+            case REQUEST_PERMISSION_SLEEP_DISABLE:
+                Toast.makeText(this, R.string.unused_app_restrictions_granted, Toast.LENGTH_LONG);
+                mSettings.setNoSleep(true);
+                break;
+            default:
+                break;
+        }
+    }
+
+    @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == MY_PERMISSIONS_REQUEST_SEND_SMS) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                turnOn();
-            }
+        switch (requestCode) {
+            case REQUEST_PERMISSION_SEND_SMS:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    turnOn();
+                }
+                break;
+            case REQUEST_PERMISSION_SLEEP_DISABLE:
+                break;
+            default:
+                break;
         }
     }
 
@@ -204,7 +227,7 @@ public class MainActivity extends AppCompatActivity
             if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.SEND_SMS)) {
                 ActivityCompat.requestPermissions(this,
                         new String[]{Manifest.permission.SEND_SMS},
-                        MY_PERMISSIONS_REQUEST_SEND_SMS);
+                        REQUEST_PERMISSION_SEND_SMS);
             }
         }
     }

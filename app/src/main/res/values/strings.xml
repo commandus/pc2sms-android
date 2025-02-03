@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">pc2sms</string>
+    <string name="unused_app_restrictions_granted">Предоставлено право меньше спать</string>
 </resources>
