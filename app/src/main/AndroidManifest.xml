@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.QUICKBOOT_POWERON" />
     <!-- send SMS -->
     <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
     <application
         android:allowBackup="true"
@@ -28,9 +30,13 @@
         </activity>
         <activity android:name=".AboutActivity">
         </activity>
+        <activity android:name=".NotifySetPermissionActivity">
+        </activity>
 
         <service
             android:name=".SendSMSService"
+            android:foregroundServiceType="phoneCall"
+            android:exported="false"
             android:enabled="true"
             />
         <!-- start up service on boot -->

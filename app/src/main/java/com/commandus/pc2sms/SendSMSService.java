@@ -1,11 +1,20 @@
 package com.commandus.pc2sms;
 
+import android.Manifest;
 import android.app.AlarmManager;
+import android.app.ForegroundServiceStartNotAllowedException;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ServiceInfo;
+import android.content.res.Resources;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -14,9 +23,13 @@ import android.telephony.SmsManager;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.ServiceCompat;
+import androidx.core.content.ContextCompat;
 
 import java.util.Iterator;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.pc2sms.*;
@@ -27,6 +40,8 @@ public class SendSMSService extends Service {
     public static final String ACTION_START = "start";
     public static final String ACTION_STOP = "stop";
     private static final String TAG = "send-sms-service";
+    private static final int SVC_ID = 4250053;
+    private static final String NOTIFICATION_CHANNEL_ID = "PC2SMS";
 
     public boolean isListening = false;
 
@@ -55,7 +70,9 @@ public class SendSMSService extends Service {
     public void onCreate() {
         super.onCreate();
         log("Сервис отправки СМС...");
-        startListenSMS();
+        Settings mSettings = Settings.getSettings(this);
+        if (mSettings.getServiceOn())
+            startListenSMS();
     }
 
     @Override
@@ -86,7 +103,7 @@ public class SendSMSService extends Service {
     }
 
     public void attach(ServiceListener listener) {
-        log("attached");
+        // log("attached");
         if (Looper.getMainLooper().getThread() != Thread.currentThread())
             throw new IllegalArgumentException("not in main thread");
         synchronized (this) {
@@ -96,7 +113,7 @@ public class SendSMSService extends Service {
 
     public void detach() {
         listener = null;
-        log("detached");
+        // log("detached");
     }
 
     private void log(
@@ -114,18 +131,78 @@ public class SendSMSService extends Service {
         }
     }
 
+    private void indicateListenStatus(
+        final boolean listen
+    ) {
+        isListening = listen;
+        synchronized (this) {
+            if (listener != null) {
+                mainLooper.post(() -> {
+                    if (listener != null) {
+                        listener.onListen(listen);
+                    }
+                });
+            }
+        }
+    }
+
     private void stopListenSMS() {
         if (mThread != null) {
             mStopRequest = true;
             mThread.interrupt();
         }
     }
+    private boolean startFg() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+            Log.e(TAG, "No send SMS permission is granted, finish service");
+            stopSelf();
+            return false;
+        }
+        try {
+            Resources res = getResources();
+            Intent notificationIntent = new Intent(this, MainActivity.class);
+
+            PendingIntent contentIntent = PendingIntent.getActivity(this, 111, notificationIntent, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                NotificationChannel nc = new NotificationChannel(NOTIFICATION_CHANNEL_ID, "pc2sms", NotificationManager.IMPORTANCE_HIGH);
+                final NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                nm.createNotificationChannel(nc);
+            }
+            Notification notification = new NotificationCompat.Builder(this, TAG)
+                    .setChannelId(NOTIFICATION_CHANNEL_ID)
+                    .setContentIntent(contentIntent)
+                    .setSmallIcon(R.drawable.ic_launcher_foreground)
+                    .setTicker(res.getString(R.string.unused_app_restrictions_granted))
+//                    .setAutoCancel(true)
+                    .setContentTitle(res.getString(R.string.app_name))
+                    .setContentText(res.getString(R.string.app_name))
+                    .build();
+
+            int type = 0;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                type = ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL;
+            }
+            ServiceCompat.startForeground(this, SVC_ID, notification, type);
+        } catch (Exception e) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                    e instanceof ForegroundServiceStartNotAllowedException
+            ) {
+                // App not in a valid state to start foreground service
+                // (e.g started from bg)
+                Log.e(TAG, e.toString());
+            }
+            return false;
+        }
+        return true;
+    }
 
     public void startListenSMS() {
         if (mThread == null) {
             mThread = new Thread(() -> {
-                mStopRequest = false;
-                listenSMS();
+                if (startFg()) {
+                    mStopRequest = false;
+                    listenSMS();
+                }
             });
             mThread.start();
         }
@@ -133,25 +210,30 @@ public class SendSMSService extends Service {
 
     public void listenSMS() {
         int failureCount = 0;
+        log("Start listening..");
         while (!mStopRequest) {
+            ManagedChannel mChannel = null;
+            Settings mSettings = Settings.getSettings(this);
+            smsGrpc.smsBlockingStub mStub;
             try {
-                int sleepTime = failureCount * 1000;
+                int sleepTime = 2 * failureCount * 1000;
                 if (sleepTime > 2 * 60 * 1000) {
-                    sleepTime = 2 * 60 * 1000; // 2'
+                    sleepTime = 1000; // 2'
+                    failureCount = 0;
                 }
                 Thread.sleep(sleepTime);
-                Settings mSettings = Settings.getSettings(this);
-                ManagedChannel mChannel = ManagedChannelBuilder.forAddress(mSettings.getAddress(), mSettings.getPort())
+                mChannel = ManagedChannelBuilder.forAddress(mSettings.getAddress(), mSettings.getPort())
                         .usePlaintext()
+                        .keepAliveTime(5, TimeUnit.SECONDS)
                         .build();
-                smsGrpc.smsBlockingStub mStub = smsGrpc.newBlockingStub(mChannel);
+                mStub = smsGrpc.newBlockingStub(mChannel);
                 Credentials c = Credentials.newBuilder()
                         .setLogin(mSettings.getUser())
                         .setPassword(mSettings.getPassword())
                         .build();
                 Iterator<SMS> iter = mStub.listenSMSToSend(c);
                 log("listen..");
-                isListening = true;
+                indicateListenStatus(true);
                 while (iter.hasNext()) {
                     failureCount = 0;
                     sendSMS(iter.next());
@@ -164,10 +246,14 @@ public class SendSMSService extends Service {
                     log("listen error " + e.getMessage());
                 }
             }
+            if (mChannel != null) {
+                mChannel.shutdown();
+                mChannel = null;
+            }
         }
         log("stop listening");
         mStopRequest = false;
-        isListening = false;
+        indicateListenStatus(false);
         mThread = null;
     }
     

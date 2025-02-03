@@ -12,6 +12,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.Editable;
@@ -27,7 +28,7 @@ public class MainActivity extends AppCompatActivity
 
     private static final String TAG = "pc2sms-main-activity";
     private static final int REQUEST_PERMISSION_SEND_SMS = 1;
-    private static final int REQUEST_PERMISSION_SLEEP_DISABLE = 2;
+    public static final int REQUEST_PERMISSION_SLEEP_DISABLE = 2;
 
     TextView textViewMessage;
     EditText editTextServiceAddress;
@@ -79,7 +80,8 @@ public class MainActivity extends AppCompatActivity
         editTextUserName.addTextChangedListener(mTextWatcher);
         editTextPassword.addTextChangedListener(mTextWatcher);
 
-        startService(new Intent(this, SendSMSService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
+        if (mSettings.getServiceOn())
+            turnOn();
     }
 
     @Override
@@ -88,7 +90,7 @@ public class MainActivity extends AppCompatActivity
         switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListeber);
         // Bind to LocalService
         bindService(new Intent(this, SendSMSService.class), this, Context.BIND_AUTO_CREATE);
-        Settings.requestDisableSleep(this, REQUEST_PERMISSION_SLEEP_DISABLE);
+        Settings.requestDisableSleep(this);
     }
 
     @Override
@@ -103,23 +105,20 @@ public class MainActivity extends AppCompatActivity
     }
     
     private void toggleService(boolean on) {
+        mSettings.save();
         if (on) {
             checkPermission();
         } else {
-            Intent intent = new Intent(MainActivity.this, SendSMSService.class);
-            intent.setAction(SendSMSService.ACTION_STOP);
-            startService(intent);
-            // Intent intent = new Intent(MainActivity.this, SendSMSService.class);
-            // stopService(intent);
+            turnOff();
         }
     }
-
 
     private void load() {
         editTextServiceAddress.setText(mSettings.getAddress());
         editTextServicePort.setText(Integer.toString(mSettings.getPort()));
         editTextUserName.setText(mSettings.getUser());
         editTextPassword.setText(mSettings.getPassword());
+        switchAllowSendSMS.setChecked(mSettings.getServiceOn());
     }
 
     private void save() {
@@ -127,6 +126,7 @@ public class MainActivity extends AppCompatActivity
         mSettings.setPort(Integer.parseInt(editTextServicePort.getText().toString()));
         mSettings.setUser(editTextUserName.getText().toString());
         mSettings.setPassword(editTextPassword.getText().toString());
+        mSettings.setServiceOn(switchAllowSendSMS.isChecked());
         mSettings.save();
     }
 
@@ -186,6 +186,13 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    public void onListen(boolean listen) {
+        if (switchAllowSendSMS != null) {
+            switchAllowSendSMS.setChecked(listen);
+        }
+    }
+
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         switch (requestCode) {
@@ -215,9 +222,26 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void turnOn() {
+        Context context = getApplicationContext();
         Intent intent = new Intent(MainActivity.this, SendSMSService.class);
         intent.setAction(SendSMSService.ACTION_START);
-        startService(intent);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent);
+        } else {
+            startService(intent);
+        }
+    }
+
+    private void turnOff() {
+        Context context = getApplicationContext();
+        Intent intent = new Intent(MainActivity.this, SendSMSService.class);
+        intent.setAction(SendSMSService.ACTION_STOP);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent);
+        } else {
+            startService(intent);
+        }
     }
 
     public void checkPermission() {

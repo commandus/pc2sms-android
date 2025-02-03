@@ -30,6 +30,7 @@ public class Settings {
 
     private static final String PREF_LOGIN = "login";
     private static final String PREF_PASSWORD = "password";
+    private static final String PREF_SERVICE_ON = "service_on";
     private static final String PREF_AUTO_START = "auto_start";
 
     private static Settings mSettings = null;
@@ -39,6 +40,7 @@ public class Settings {
     private int mPort;
     private String mLogin;
     private String mPassword;
+    private boolean mServiceOn;
     private boolean mAutoStart;
 
     public String getAddress() {
@@ -53,6 +55,9 @@ public class Settings {
     public String getPassword() {
         return mPassword;
     }
+    public boolean getServiceOn() {
+        return mServiceOn;
+    }
 
     public void setAddress(String value) {
         mAddress = value;
@@ -66,6 +71,9 @@ public class Settings {
     public void setPassword(String value) {
         mPassword = value;
     }
+    public void setServiceOn(boolean value) {
+        mServiceOn = value;
+    }
 
     public void load() {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
@@ -73,6 +81,7 @@ public class Settings {
         mPort = prefs.getInt(PREF_SERVICE_PORT, DEF_SERVICE_PORT);
         mLogin = prefs.getString(PREF_LOGIN, DEF_LOGIN);
         mPassword = prefs.getString(PREF_PASSWORD, DEF_PASSWORD);
+        mServiceOn = prefs.getBoolean(PREF_SERVICE_ON, false);
         mAutoStart = prefs.getBoolean(PREF_AUTO_START, true);
     }
 
@@ -83,6 +92,7 @@ public class Settings {
         editor.putInt(PREF_SERVICE_PORT, mPort);
         editor.putString(PREF_LOGIN, mLogin);
         editor.putString(PREF_PASSWORD, mPassword);
+        editor.putBoolean(PREF_SERVICE_ON, mServiceOn);
         editor.putBoolean(PREF_AUTO_START, mAutoStart);
         editor.apply();
     }
@@ -99,7 +109,7 @@ public class Settings {
         return mSettings;
     }
 
-    static public void requestDisableSleep(Activity activity, int requestCode) {
+    static public void requestDisableSleep(Activity activity) {
         ListenableFuture<Integer> future = PackageManagerCompat.getUnusedAppRestrictionsStatus(activity);
         future.addListener(()->{
             int appRestrictionsStatus = 0;
@@ -122,17 +132,20 @@ public class Settings {
                 case UnusedAppRestrictionsConstants.API_30:
                 case UnusedAppRestrictionsConstants.API_31:
                     // If the user doesn't start your app for a few months, the system will place restrictions on it
-                    Log.e(TAG, "requestDisableSleep successfully");
-                    handleRestrictions(activity, requestCode, appRestrictionsStatus);
+                    Log.e(TAG, "user doesn't start your app for a few months, the system will place restrictions on it");
+                    handleRestrictions(activity, appRestrictionsStatus);
                     break;
 
             }
         }, ContextCompat.getMainExecutor(activity));
     }
 
-    static private void handleRestrictions(Activity activity, int requestCode, int appRestrictionsStatus) {
-        Intent intent = IntentCompat.createManageUnusedAppRestrictionsIntent(activity, activity.getPackageName());
-        activity.startActivityForResult(intent, requestCode);
+    static private void handleRestrictions(Activity activity, int appRestrictionsStatus) {
+        Intent intent = new Intent(activity, NotifySetPermissionActivity.class);
+        activity.startActivity(intent);
+
+        // Intent intent2 = IntentCompat.createManageUnusedAppRestrictionsIntent(activity, activity.getPackageName());
+        // activity.startActivityForResult(intent2, MainActivity.REQUEST_PERMISSION_SLEEP_DISABLE);
     }
 
     public void setNoSleep(boolean enabled) {
