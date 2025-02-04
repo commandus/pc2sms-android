@@ -110,7 +110,7 @@ public class SendSMSService extends Service {
     public boolean onUnbind(Intent intent) {
         log("Сервис отправки СМС отоединен от активности");
         listener = null;
-        restartService();
+        // restartService();
         return super.onUnbind(intent);
     }
 
@@ -212,10 +212,11 @@ public class SendSMSService extends Service {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
                     e instanceof ForegroundServiceStartNotAllowedException
             ) {
-                // App not in a valid state to start foreground service
-                // (e.g started from bg)
-                Log.e(TAG, e.toString());
+                // App not in a valid state to start foreground service (e.g started from bg)
+                Log.e(TAG, "App not in a valid state to start foreground service");
             }
+            Log.e(TAG, "Start foreground service error");
+            Log.e(TAG, e.toString());
             return false;
         }
         return true;
@@ -247,7 +248,7 @@ public class SendSMSService extends Service {
                     failureCount = 0;
                 }
                 Thread.sleep(sleepTime);
-
+                /*
                 mChannel = ManagedChannelBuilder.forAddress(mSettings.getAddress(), mSettings.getPort())
                     .usePlaintext()
                     .keepAliveTime(30, TimeUnit.SECONDS)
@@ -263,6 +264,7 @@ public class SendSMSService extends Service {
                 Log.i(TAG, "countSMSToSend = " + Integer.toString(r.getCount()));
                 SMS sms = mStub.lastSMSToSend(c);
                 Log.i(TAG, "lastSMSToSend = " + sms.getPhone() + " " + sms.getMessage());
+                */
                 log("wait SMS..");
                 /*
                 Iterator<SMS> iter = mStub.listenSMSToSend(c);

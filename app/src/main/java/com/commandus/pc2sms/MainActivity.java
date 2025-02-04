@@ -87,8 +87,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onPause() {
         super.onPause();
-        if (switchAllowSendSMS.isChecked())
-            service.restartService();
+        // if (switchAllowSendSMS.isChecked()) service.restartService();
     }
 
     @Override
@@ -228,23 +227,21 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void turnOn() {
-        Context context = getApplicationContext();
         Intent intent = new Intent(MainActivity.this, SendSMSService.class);
         intent.setAction(SendSMSService.ACTION_START);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent);
+            getApplicationContext().startForegroundService(intent);
         } else {
             startService(intent);
         }
     }
 
     private void turnOff() {
-        Context context = getApplicationContext();
         Intent intent = new Intent(MainActivity.this, SendSMSService.class);
         intent.setAction(SendSMSService.ACTION_STOP);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent);
+            getApplicationContext().startForegroundService(intent);
         } else {
             startService(intent);
         }
