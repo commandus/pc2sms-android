@@ -259,8 +259,13 @@ public class SendSMSService extends Service {
                     .build();
 
                 mStub = smsGrpc.newBlockingStub(mChannel);
-                Iterator<SMS> iter = mStub.listenSMSToSend(c);
+                ResponseCount r = mStub.countSMSToSend(c);
+                Log.i(TAG, "countSMSToSend = " + Integer.toString(r.getCount()));
+                SMS sms = mStub.lastSMSToSend(c);
+                Log.i(TAG, "lastSMSToSend = " + sms.getPhone() + " " + sms.getMessage());
                 log("wait SMS..");
+                /*
+                Iterator<SMS> iter = mStub.listenSMSToSend(c);
                 indicateListenStatus(true);
                 while (iter.hasNext()) {
                     failureCount = 0;
@@ -272,6 +277,7 @@ public class SendSMSService extends Service {
                         log("Отправлено СМС ");
                     }
                 }
+                */
             } catch (Throwable e) {
                 if (mStopRequest) {
                     log("listening interrupted");

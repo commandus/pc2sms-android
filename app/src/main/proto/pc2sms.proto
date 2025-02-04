@@ -12,6 +12,8 @@ package pc2sms;
 service sms {
   rpc requestToSend(RequestCommand) returns (ResponseCommand);
   rpc listenSMSToSend(Credentials) returns (stream SMS);
+  rpc countSMSToSend(Credentials) returns (ResponseCount);
+  rpc lastSMSToSend(Credentials) returns (SMS);
 }
 
 message Credentials {
@@ -30,5 +32,10 @@ message RequestCommand {
 }
 
 message ResponseCommand {
+  int32 count = 1;
+}
+
+message ResponseCount
+{
   int32 count = 1;
 }
