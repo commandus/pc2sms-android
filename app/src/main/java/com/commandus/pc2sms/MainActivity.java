@@ -55,7 +55,7 @@ public class MainActivity extends AppCompatActivity
         }
     };
 
-    private final SwitchCompat.OnCheckedChangeListener mServiceOnListeber = (compoundButton, b) -> toggleService(b);
+    private final SwitchCompat.OnCheckedChangeListener mServiceOnListener = (compoundButton, b) -> toggleService(b);
 
     private boolean mBound = false;
 
@@ -85,9 +85,16 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        if (switchAllowSendSMS.isChecked())
+            service.restartService();
+    }
+
+    @Override
     protected void onStart() {
         super.onStart();
-        switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListeber);
+        switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListener);
         // Bind to LocalService
         bindService(new Intent(this, SendSMSService.class), this, Context.BIND_AUTO_CREATE);
         if (mSettings.getRequestDisableSleep())
@@ -99,10 +106,8 @@ public class MainActivity extends AppCompatActivity
         super.onStop();
         switchAllowSendSMS.setOnCheckedChangeListener(null);
         // Unbind from the service
-        if (mBound) {
-            unbindService(this);
-            mBound = false;
-        }
+        unbindService(this);
+        mBound = false;
     }
     
     private void toggleService(boolean on) {
@@ -139,7 +144,7 @@ public class MainActivity extends AppCompatActivity
         if (switchAllowSendSMS != null) {
             switchAllowSendSMS.setOnCheckedChangeListener(null);
             switchAllowSendSMS.setChecked(service.isListening);
-            switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListeber);
+            switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListener);
         }
 
         mBound = true;

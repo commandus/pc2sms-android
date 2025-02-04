@@ -110,7 +110,20 @@ public class SendSMSService extends Service {
     public boolean onUnbind(Intent intent) {
         log("Сервис отправки СМС отоединен от активности");
         listener = null;
+        restartService();
         return super.onUnbind(intent);
+    }
+
+    public void restartService() {
+        log("Запрос рестарта.");
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                stopListenSMS();
+                startListenSMS();
+                log("Сервис отправки рестартанул.");
+            }
+        }, 10000);
     }
 
     public void attach(ServiceListener listener) {
@@ -161,6 +174,7 @@ public class SendSMSService extends Service {
         if (mThread != null) {
             mStopRequest = true;
             mThread.interrupt();
+            mThread = null;
         }
     }
     private boolean startFg() {
@@ -236,6 +250,8 @@ public class SendSMSService extends Service {
 
                 mChannel = ManagedChannelBuilder.forAddress(mSettings.getAddress(), mSettings.getPort())
                     .usePlaintext()
+                    .keepAliveTime(30, TimeUnit.SECONDS)
+                    .keepAliveTimeout(60, TimeUnit.SECONDS)
                     .build();
                 Credentials c = Credentials.newBuilder()
                     .setLogin(mSettings.getUser())

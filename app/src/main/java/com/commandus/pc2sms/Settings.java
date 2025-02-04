@@ -156,7 +156,7 @@ public class Settings {
     }
 
     public boolean getRequestDisableSleep() {
-        return false;
+        return true;
     }
 
     public boolean getSimulateOn() {
