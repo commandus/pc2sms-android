@@ -35,6 +35,7 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.pc2sms.*;
 
 import io.grpc.ManagedChannel;
+import io.grpc.stub.StreamObserver;
 
 public class SendSMSService extends Service {
     public static final String ACTION_START = "start";
@@ -69,7 +70,7 @@ public class SendSMSService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        log("Сервис отправки СМС...");
+        log("Сервис отправки СМС создан.");
         Settings mSettings = Settings.getSettings(this);
         if (mSettings.getServiceOn())
             startListenSMS();
@@ -77,11 +78,14 @@ public class SendSMSService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+
         String a = intent.getAction();
         if (Objects.equals(a, ACTION_START)) {
+            log("Сервис отправки СМС стартовал.");
             startListenSMS();
         }
         if (Objects.equals(a, ACTION_STOP)) {
+            log("Сервис отправки СМС остановился.");
             stopListenSMS();
         }
 
@@ -98,12 +102,19 @@ public class SendSMSService extends Service {
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        log("Сервис отправки СМС соединен");
+        log("Сервис отправки СМС соединен с активностью");
         return binder;
     }
 
+    @Override
+    public boolean onUnbind(Intent intent) {
+        log("Сервис отправки СМС отоединен от активности");
+        listener = null;
+        return super.onUnbind(intent);
+    }
+
     public void attach(ServiceListener listener) {
-        // log("attached");
+        log("Сервис отправки СМС подключил слушателя.");
         if (Looper.getMainLooper().getThread() != Thread.currentThread())
             throw new IllegalArgumentException("not in main thread");
         synchronized (this) {
@@ -112,8 +123,8 @@ public class SendSMSService extends Service {
     }
 
     public void detach() {
+        log("Сервис отправки СМС отключил слушателя.");
         listener = null;
-        // log("detached");
     }
 
     private void log(
@@ -222,21 +233,28 @@ public class SendSMSService extends Service {
                     failureCount = 0;
                 }
                 Thread.sleep(sleepTime);
+
                 mChannel = ManagedChannelBuilder.forAddress(mSettings.getAddress(), mSettings.getPort())
-                        .usePlaintext()
-                        .keepAliveTime(5, TimeUnit.SECONDS)
-                        .build();
-                mStub = smsGrpc.newBlockingStub(mChannel);
+                    .usePlaintext()
+                    .build();
                 Credentials c = Credentials.newBuilder()
-                        .setLogin(mSettings.getUser())
-                        .setPassword(mSettings.getPassword())
-                        .build();
+                    .setLogin(mSettings.getUser())
+                    .setPassword(mSettings.getPassword())
+                    .build();
+
+                mStub = smsGrpc.newBlockingStub(mChannel);
                 Iterator<SMS> iter = mStub.listenSMSToSend(c);
-                log("listen..");
+                log("wait SMS..");
                 indicateListenStatus(true);
                 while (iter.hasNext()) {
                     failureCount = 0;
-                    sendSMS(iter.next());
+                    if (mSettings.getSimulateOn()) {
+                        log("Как-бы отправлено СМС ");
+                        simulateSendSMS(iter.next());
+                    } else {
+                        sendSMS(iter.next());
+                        log("Отправлено СМС ");
+                    }
                 }
             } catch (Throwable e) {
                 if (mStopRequest) {
@@ -256,7 +274,20 @@ public class SendSMSService extends Service {
         indicateListenStatus(false);
         mThread = null;
     }
-    
+
+    private void simulateSendSMS(SMS value) {
+        synchronized (this) {
+            if (listener != null) {
+                mainLooper.post(() -> {
+                    if (listener != null) {
+                        listener.onInfo("Как бы отправлено: '" + value.getMessage()
+                                + "' на " + value.getPhone());
+                    }
+                });
+            }
+        }
+    }
+
     public void sendSMSMessage(SMS value) {
         SmsManager smsManager = SmsManager.getDefault();
         PendingIntent sentPI;
@@ -295,7 +326,7 @@ public class SendSMSService extends Service {
 
     @Override
     public void onTaskRemoved(Intent rootIntent) {
-        log("Сервис СМС был удален");
+        log("Приложение для отправки СМС было удалено с экрана");
         Intent restartServiceIntent = new Intent(getApplicationContext(), this.getClass());
         restartServiceIntent.setPackage(getPackageName());
         restartServiceIntent.setAction(ACTION_START);

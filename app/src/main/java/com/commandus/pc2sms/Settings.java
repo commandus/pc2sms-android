@@ -154,5 +154,13 @@ public class Settings {
         else
             Log.i(TAG, "User do not grant to disable app restrictions");
     }
+
+    public boolean getRequestDisableSleep() {
+        return false;
+    }
+
+    public boolean getSimulateOn() {
+        return true;
+    }
 }
 

@@ -90,7 +90,8 @@ public class MainActivity extends AppCompatActivity
         switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListeber);
         // Bind to LocalService
         bindService(new Intent(this, SendSMSService.class), this, Context.BIND_AUTO_CREATE);
-        Settings.requestDisableSleep(this);
+        if (mSettings.getRequestDisableSleep())
+            Settings.requestDisableSleep(this);
     }
 
     @Override
