@@ -1,8 +1,9 @@
 <resources>
     <string name="app_name">pc2sms</string>
-    <string name="unused_app_restrictions_granted">Предоставлено право меньше спать</string>
+    <string name="unused_app_restrictions_granted">Права восстановлены</string>
     <string name="url_github">https://github.com/commandus/pc2sms</string>
     <string name="go_to_settings">Система включила для приложения спящий режим. Сейчас его надо отключить. По нажатию кнопки откроются настройки приложения. В них нужно выключить спящий режим (переключатель внизу настроек)</string>
     <string name="label_go_to_settings">Перейти к настройкам</string>
     <string name="description_set_permission">Что нужно сделать в настройках</string>
+    <string name="notification_title"><![CDATA[PC>SMS]]></string>
 </resources>

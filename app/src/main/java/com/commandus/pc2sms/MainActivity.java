@@ -57,8 +57,6 @@ public class MainActivity extends AppCompatActivity
 
     private final SwitchCompat.OnCheckedChangeListener mServiceOnListener = (compoundButton, b) -> toggleService(b);
 
-    private boolean mBound = false;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -71,29 +69,25 @@ public class MainActivity extends AppCompatActivity
         editTextPassword = findViewById(R.id.editTextPassword);
         switchAllowSendSMS = findViewById(R.id.switchAllowSendSMS);
 
-        mSettings = Settings.getSettings(this);
 
+        mSettings = Settings.getSettings(this);
         load();
 
         editTextServiceAddress.addTextChangedListener(mTextWatcher);
         editTextServicePort.addTextChangedListener(mTextWatcher);
         editTextUserName.addTextChangedListener(mTextWatcher);
         editTextPassword.addTextChangedListener(mTextWatcher);
-
-        if (mSettings.getServiceOn())
-            turnOn();
+        switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListener);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        // if (switchAllowSendSMS.isChecked()) service.restartService();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListener);
         // Bind to LocalService
         bindService(new Intent(this, SendSMSService.class), this, Context.BIND_AUTO_CREATE);
         if (mSettings.getRequestDisableSleep())
@@ -103,10 +97,8 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onStop() {
         super.onStop();
-        switchAllowSendSMS.setOnCheckedChangeListener(null);
         // Unbind from the service
         unbindService(this);
-        mBound = false;
     }
     
     private void toggleService(boolean on) {
@@ -123,15 +115,20 @@ public class MainActivity extends AppCompatActivity
         editTextServicePort.setText(Integer.toString(mSettings.getPort()));
         editTextUserName.setText(mSettings.getUser());
         editTextPassword.setText(mSettings.getPassword());
-        switchAllowSendSMS.setChecked(mSettings.getServiceOn());
     }
 
     private void save() {
+        int port = 50053;
+        try {
+            port = Integer.parseInt(editTextServicePort.getText().toString());
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "Номер порта- целое число", Toast.LENGTH_SHORT).show();
+        }
+
         mSettings.setAddress(editTextServiceAddress.getText().toString());
-        mSettings.setPort(Integer.parseInt(editTextServicePort.getText().toString()));
+        mSettings.setPort(port);
         mSettings.setUser(editTextUserName.getText().toString());
         mSettings.setPassword(editTextPassword.getText().toString());
-        mSettings.setServiceOn(switchAllowSendSMS.isChecked());
         mSettings.save();
     }
 
@@ -140,19 +137,20 @@ public class MainActivity extends AppCompatActivity
         Log.d(TAG, "service connect..");
         service = ((SendSMSService.SendSMSBinder) binder).getService();
         service.attach(this);
+        updateSwitchAllowSendSMS(service.isListening);
+    }
+
+    private void updateSwitchAllowSendSMS(boolean isListening) {
         if (switchAllowSendSMS != null) {
             switchAllowSendSMS.setOnCheckedChangeListener(null);
-            switchAllowSendSMS.setChecked(service.isListening);
+            switchAllowSendSMS.setChecked(isListening);
             switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListener);
         }
-
-        mBound = true;
     }
 
     @Override
     public void onServiceDisconnected(ComponentName name) {
         Log.d(TAG, "disconnected");
-        mBound = false;
         service = null;
     }
 
@@ -192,9 +190,7 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onListen(boolean listen) {
-        if (switchAllowSendSMS != null) {
-            switchAllowSendSMS.setChecked(listen);
-        }
+        updateSwitchAllowSendSMS(listen);
     }
 
     @Override
@@ -202,7 +198,7 @@ public class MainActivity extends AppCompatActivity
         super.onActivityResult(requestCode, resultCode, data);
         switch (requestCode) {
             case REQUEST_PERMISSION_SLEEP_DISABLE:
-                Toast.makeText(this, R.string.unused_app_restrictions_granted, Toast.LENGTH_LONG);
+                Toast.makeText(this, R.string.unused_app_restrictions_granted, Toast.LENGTH_LONG).show();
                 mSettings.setNoSleep(true);
                 break;
             default:

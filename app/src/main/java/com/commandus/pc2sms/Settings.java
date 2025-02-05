@@ -7,7 +7,6 @@ import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.core.content.ContextCompat;
-import androidx.core.content.IntentCompat;
 import androidx.core.content.UnusedAppRestrictionsConstants;
 import androidx.preference.PreferenceManager;
 import androidx.core.content.PackageManagerCompat;
@@ -30,9 +29,6 @@ public class Settings {
 
     private static final String PREF_LOGIN = "login";
     private static final String PREF_PASSWORD = "password";
-    private static final String PREF_SERVICE_ON = "service_on";
-    private static final String PREF_AUTO_START = "auto_start";
-
     private static Settings mSettings = null;
     private final Context mContext;
 
@@ -40,9 +36,6 @@ public class Settings {
     private int mPort;
     private String mLogin;
     private String mPassword;
-    private boolean mServiceOn;
-    private boolean mAutoStart;
-
     public String getAddress() {
         return mAddress;
     }
@@ -55,10 +48,6 @@ public class Settings {
     public String getPassword() {
         return mPassword;
     }
-    public boolean getServiceOn() {
-        return mServiceOn;
-    }
-
     public void setAddress(String value) {
         mAddress = value;
     }
@@ -71,9 +60,6 @@ public class Settings {
     public void setPassword(String value) {
         mPassword = value;
     }
-    public void setServiceOn(boolean value) {
-        mServiceOn = value;
-    }
 
     public void load() {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
@@ -81,8 +67,6 @@ public class Settings {
         mPort = prefs.getInt(PREF_SERVICE_PORT, DEF_SERVICE_PORT);
         mLogin = prefs.getString(PREF_LOGIN, DEF_LOGIN);
         mPassword = prefs.getString(PREF_PASSWORD, DEF_PASSWORD);
-        mServiceOn = prefs.getBoolean(PREF_SERVICE_ON, false);
-        mAutoStart = prefs.getBoolean(PREF_AUTO_START, true);
     }
 
     public void save() {
@@ -92,8 +76,6 @@ public class Settings {
         editor.putInt(PREF_SERVICE_PORT, mPort);
         editor.putString(PREF_LOGIN, mLogin);
         editor.putString(PREF_PASSWORD, mPassword);
-        editor.putBoolean(PREF_SERVICE_ON, mServiceOn);
-        editor.putBoolean(PREF_AUTO_START, mAutoStart);
         editor.apply();
     }
 

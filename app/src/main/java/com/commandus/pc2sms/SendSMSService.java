@@ -42,14 +42,14 @@ public class SendSMSService extends Service {
     public static final String ACTION_STOP = "stop";
     private static final String TAG = "send-sms-service";
     private static final int SVC_ID = 4250053;
-    private static final String NOTIFICATION_CHANNEL_ID = "PC2SMS";
+    private static final String NOTIFICATION_CHANNEL_ID = "pc2sms";
+    private static final String NOTIFICATION_CHANNEL_NAME = "SMS sent from the PC";
 
     public boolean isListening = false;
 
     private Thread mThread;
     private ServiceListener listener;
     private static boolean mStopRequest = false;
-
     class SendSMSBinder extends Binder {
         SendSMSService getService() {
             return SendSMSService.this;
@@ -58,6 +58,8 @@ public class SendSMSService extends Service {
 
     private final Handler mainLooper;
     private final IBinder binder;
+
+    private long callCounter = 0;
 
     /**
      * Lifecylce
@@ -70,10 +72,7 @@ public class SendSMSService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        log("Сервис отправки СМС создан.");
-        Settings mSettings = Settings.getSettings(this);
-        if (mSettings.getServiceOn())
-            startListenSMS();
+        Log.i(TAG, "Сервис отправки СМС создан.");
     }
 
     @Override
@@ -81,11 +80,11 @@ public class SendSMSService extends Service {
 
         String a = intent.getAction();
         if (Objects.equals(a, ACTION_START)) {
-            log("Сервис отправки СМС стартовал.");
+            Log.i(TAG, "Сервис отправки СМС стартовал.");
             startListenSMS();
         }
         if (Objects.equals(a, ACTION_STOP)) {
-            log("Сервис отправки СМС остановился.");
+            Log.i(TAG, "Сервис отправки СМС остановлен.");
             stopListenSMS();
         }
 
@@ -95,39 +94,39 @@ public class SendSMSService extends Service {
     @Override
     public void onDestroy() {
         stopListenSMS();
-        log("Сервис отправки СМС завершен");
+        Log.i(TAG, "Сервис отправки СМС завершен");
         super.onDestroy();
     }
 
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        log("Сервис отправки СМС соединен с активностью");
+        Log.i(TAG, "Сервис отправки СМС соединен с активностью");
         return binder;
     }
 
     @Override
     public boolean onUnbind(Intent intent) {
-        log("Сервис отправки СМС отоединен от активности");
+        Log.i(TAG, "Сервис отправки СМС отоединен от активности");
         listener = null;
         // restartService();
         return super.onUnbind(intent);
     }
 
     public void restartService() {
-        log("Запрос рестарта.");
+        Log.i(TAG, "Запрос перезапуска.");
         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
             public void run() {
                 stopListenSMS();
                 startListenSMS();
-                log("Сервис отправки рестартанул.");
+                Log.i(TAG, "Сервис отправки перезапустился.");
             }
         }, 10000);
     }
 
     public void attach(ServiceListener listener) {
-        log("Сервис отправки СМС подключил слушателя.");
+        Log.i(TAG, "Сервис отправки СМС подключил активность.");
         if (Looper.getMainLooper().getThread() != Thread.currentThread())
             throw new IllegalArgumentException("not in main thread");
         synchronized (this) {
@@ -136,7 +135,7 @@ public class SendSMSService extends Service {
     }
 
     public void detach() {
-        log("Сервис отправки СМС отключил слушателя.");
+        Log.i(TAG, "Сервис отправки СМС отключил активность.");
         listener = null;
     }
 
@@ -144,6 +143,10 @@ public class SendSMSService extends Service {
         final String message
     ) {
         Log.d(TAG, message);
+        final NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        Notification notification = mkNotification(message);
+        nm.notify(1, mkNotification(message));
+
         synchronized (this) {
             if (listener != null) {
                 mainLooper.post(() -> {
@@ -159,6 +162,7 @@ public class SendSMSService extends Service {
         final boolean listen
     ) {
         isListening = listen;
+        log(listen ? "Начал работу" : "Прекратил работу");
         synchronized (this) {
             if (listener != null) {
                 mainLooper.post(() -> {
@@ -184,25 +188,14 @@ public class SendSMSService extends Service {
             return false;
         }
         try {
-            Resources res = getResources();
-            Intent notificationIntent = new Intent(this, MainActivity.class);
-
-            PendingIntent contentIntent = PendingIntent.getActivity(this, 111, notificationIntent, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                NotificationChannel nc = new NotificationChannel(NOTIFICATION_CHANNEL_ID, "pc2sms", NotificationManager.IMPORTANCE_HIGH);
+                NotificationChannel nc = new NotificationChannel(NOTIFICATION_CHANNEL_ID, NOTIFICATION_CHANNEL_NAME,
+                        NotificationManager.IMPORTANCE_LOW);
                 final NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
                 nm.createNotificationChannel(nc);
             }
-            Notification notification = new NotificationCompat.Builder(this, TAG)
-                    .setChannelId(NOTIFICATION_CHANNEL_ID)
-                    .setContentIntent(contentIntent)
-                    .setSmallIcon(R.drawable.ic_launcher_foreground)
-                    .setTicker(res.getString(R.string.unused_app_restrictions_granted))
-//                    .setAutoCancel(true)
-                    .setContentTitle(res.getString(R.string.app_name))
-                    .setContentText(res.getString(R.string.app_name))
-                    .build();
 
+            Notification notification = mkNotification("Готов отправлять SMS");
             int type = 0;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 type = ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL;
@@ -222,6 +215,21 @@ public class SendSMSService extends Service {
         return true;
     }
 
+    private Notification mkNotification(String msg) {
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent contentIntent = PendingIntent.getActivity(this, 1,
+            notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Resources res = getResources();
+        return new NotificationCompat.Builder(this, TAG)
+                .setChannelId(NOTIFICATION_CHANNEL_ID)
+                .setContentIntent(contentIntent)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setTicker(res.getString(R.string.unused_app_restrictions_granted))
+                .setContentTitle(res.getString(R.string.notification_title))
+                .setContentText(msg)
+                .build();
+    }
+
     public void startListenSMS() {
         if (mThread == null) {
             mThread = new Thread(() -> {
@@ -236,7 +244,8 @@ public class SendSMSService extends Service {
 
     public void listenSMS() {
         int failureCount = 0;
-        log("Start listening..");
+        Log.i(TAG, "Начинаем получать SMS..");
+        indicateListenStatus(true);
         while (!mStopRequest) {
             ManagedChannel mChannel = null;
             Settings mSettings = Settings.getSettings(this);
@@ -248,7 +257,6 @@ public class SendSMSService extends Service {
                     failureCount = 0;
                 }
                 Thread.sleep(sleepTime);
-                /*
                 mChannel = ManagedChannelBuilder.forAddress(mSettings.getAddress(), mSettings.getPort())
                     .usePlaintext()
                     .keepAliveTime(30, TimeUnit.SECONDS)
@@ -259,33 +267,37 @@ public class SendSMSService extends Service {
                     .setPassword(mSettings.getPassword())
                     .build();
 
+
                 mStub = smsGrpc.newBlockingStub(mChannel);
+/*
                 ResponseCount r = mStub.countSMSToSend(c);
                 Log.i(TAG, "countSMSToSend = " + Integer.toString(r.getCount()));
                 SMS sms = mStub.lastSMSToSend(c);
                 Log.i(TAG, "lastSMSToSend = " + sms.getPhone() + " " + sms.getMessage());
-                */
-                log("wait SMS..");
-                /*
+*/
+                Log.i(TAG, "Ждём SMS..");
+                log("Вызов " + Long.toString(callCounter));
+                callCounter++;
+
                 Iterator<SMS> iter = mStub.listenSMSToSend(c);
-                indicateListenStatus(true);
+
                 while (iter.hasNext()) {
                     failureCount = 0;
                     if (mSettings.getSimulateOn()) {
-                        log("Как-бы отправлено СМС ");
+                        Log.i(TAG, "Как-бы отправлено СМС");
                         simulateSendSMS(iter.next());
                     } else {
                         sendSMS(iter.next());
-                        log("Отправлено СМС ");
+                        Log.i(TAG, "Отправлено СМС ");
                     }
                 }
-                */
+
             } catch (Throwable e) {
                 if (mStopRequest) {
-                    log("listening interrupted");
+                    Log.i(TAG, "Пользовтаель запросил остановку");
                 } else {
                     failureCount++;
-                    log("listen error " + e.getMessage());
+                    Log.e(TAG, "Ошибка работы с сервисом " + e.getMessage());
                 }
             }
             if (mChannel != null) {
@@ -293,23 +305,14 @@ public class SendSMSService extends Service {
                 mChannel = null;
             }
         }
-        log("stop listening");
+        Log.i(TAG, "Завершена отправка SMS");
         mStopRequest = false;
         indicateListenStatus(false);
         mThread = null;
     }
 
     private void simulateSendSMS(SMS value) {
-        synchronized (this) {
-            if (listener != null) {
-                mainLooper.post(() -> {
-                    if (listener != null) {
-                        listener.onInfo("Как бы отправлено: '" + value.getMessage()
-                                + "' на " + value.getPhone());
-                    }
-                });
-            }
-        }
+        log(value.getPhone() + "~ '" + value.getMessage());
     }
 
     public void sendSMSMessage(SMS value) {
@@ -321,36 +324,17 @@ public class SendSMSService extends Service {
     }
 
     public void sendSMS(SMS value) {
-    try {
-        synchronized (this) {
+        try {
             sendSMSMessage(value);
-            if (listener != null) {
-                mainLooper.post(() -> {
-                    if (listener != null) {
-                        listener.onInfo("Отправлено: '"
-                                + value.getMessage()
-                                + "' на " + value.getPhone());
-                    }
-                });
-                }
-            }
+            log(value.getPhone() + ": '" + value.getMessage());
         } catch (final Exception e) {
-            log("Ошибка отправки СМС  "  + e.getMessage());
-            synchronized (this) {
-                if (listener != null) {
-                    mainLooper.post(() -> {
-                        if (listener != null) {
-                            listener.onError(e);
-                        }
-                    });
-                }
-            }
+            log("Не отправлено " + value.getPhone() + " " + value.getMessage() + " " + e.toString());
         }
     }
 
     @Override
     public void onTaskRemoved(Intent rootIntent) {
-        log("Приложение для отправки СМС было удалено с экрана");
+        Log.i(TAG, "Приложение для отправки СМС было удалено с экрана");
         Intent restartServiceIntent = new Intent(getApplicationContext(), this.getClass());
         restartServiceIntent.setPackage(getPackageName());
         restartServiceIntent.setAction(ACTION_START);
