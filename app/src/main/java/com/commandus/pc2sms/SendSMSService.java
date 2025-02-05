@@ -18,6 +18,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.os.SystemClock;
 import android.telephony.SmsManager;
 import android.util.Log;
@@ -41,8 +42,10 @@ public class SendSMSService extends Service {
     public static final String ACTION_STOP = "stop";
     private static final String TAG = "send-sms-service";
     private static final String NOTIFICATION_CHANNEL_ID = "pc2sms";
+    private static final String WAKE_LOCK_NAME = "pc2sms:fs";
     private static final String NOTIFICATION_CHANNEL_NAME = "SMS sent from the PC";
     private static final int NOTIFICATION_ID = 1;
+    private static PowerManager.WakeLock mWakeLock;
     public boolean isListening = false;
 
     private Thread mThread;
@@ -108,7 +111,6 @@ public class SendSMSService extends Service {
     public boolean onUnbind(Intent intent) {
         Log.i(TAG, "Сервис отправки СМС отоединен от активности");
         listener = null;
-        // restartService();
         return super.onUnbind(intent);
     }
 
@@ -160,11 +162,29 @@ public class SendSMSService extends Service {
     }
 
     private void stopListenSMS() {
+        wakeUnlock();
         if (mThread != null) {
             mStopRequest = true;
             mThread.interrupt();
             mThread = null;
         }
+    }
+
+    synchronized private static PowerManager.WakeLock getLock(Context context) {
+        if (mWakeLock == null) {
+            PowerManager mgr = (PowerManager) context
+                    .getSystemService(Context.POWER_SERVICE);
+            mWakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_NAME);
+            mWakeLock.setReferenceCounted(true);
+        }
+        return mWakeLock;
+    }
+    private void wakeLock() {
+        getLock(getApplicationContext()).acquire(24*60*60*1000L);
+    }
+
+    private void wakeUnlock() {
+        getLock(getApplicationContext()).release();
     }
 
     private void mkNotificationChannel() {
@@ -227,6 +247,7 @@ public class SendSMSService extends Service {
     public void startListenSMS() {
         if (mThread == null) {
             mThread = new Thread(() -> {
+                wakeLock();
                 if (startFg()) {
                     mStopRequest = false;
                     listenSMS();
@@ -235,6 +256,7 @@ public class SendSMSService extends Service {
             mThread.start();
         }
     }
+
 
     public void listenSMS() {
         int failureCount = 0;
