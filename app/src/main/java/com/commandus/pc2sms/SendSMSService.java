@@ -227,6 +227,7 @@ public class SendSMSService extends Service {
                 .setTicker(res.getString(R.string.unused_app_restrictions_granted))
                 .setContentTitle(res.getString(R.string.notification_title))
                 .setContentText(msg)
+                .setOngoing(true)
                 .build();
     }
 

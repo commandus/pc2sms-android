@@ -29,6 +29,7 @@ public class MainActivity extends AppCompatActivity
     private static final String TAG = "pc2sms-main-activity";
     private static final int REQUEST_PERMISSION_SEND_SMS = 1;
     public static final int REQUEST_PERMISSION_SLEEP_DISABLE = 2;
+    public static final int REQUEST_PERMISSION_POST_NOTIFICATIONS = 3;
 
     TextView textViewMessage;
     EditText editTextServiceAddress;
@@ -69,7 +70,6 @@ public class MainActivity extends AppCompatActivity
         editTextPassword = findViewById(R.id.editTextPassword);
         switchAllowSendSMS = findViewById(R.id.switchAllowSendSMS);
 
-
         mSettings = Settings.getSettings(this);
         load();
 
@@ -78,6 +78,8 @@ public class MainActivity extends AppCompatActivity
         editTextUserName.addTextChangedListener(mTextWatcher);
         editTextPassword.addTextChangedListener(mTextWatcher);
         switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListener);
+
+        checkPermissionPostNotifications();
     }
 
     @Override
@@ -104,7 +106,7 @@ public class MainActivity extends AppCompatActivity
     private void toggleService(boolean on) {
         mSettings.save();
         if (on) {
-            checkPermission();
+            checkPermissionSendSMS();
         } else {
             turnOff();
         }
@@ -216,6 +218,10 @@ public class MainActivity extends AppCompatActivity
                 }
                 break;
             case REQUEST_PERMISSION_SLEEP_DISABLE:
+                Log.i(TAG, "Пользователь снял ограничения");
+                break;
+            case REQUEST_PERMISSION_POST_NOTIFICATIONS:
+                Log.i(TAG, "Пользователь дал право слать уведомления");
                 break;
             default:
                 break;
@@ -243,7 +249,7 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    public void checkPermission() {
+    public void checkPermissionSendSMS() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED) {
             turnOn();
         } else {
@@ -251,6 +257,18 @@ public class MainActivity extends AppCompatActivity
                 ActivityCompat.requestPermissions(this,
                         new String[]{Manifest.permission.SEND_SMS},
                         REQUEST_PERMISSION_SEND_SMS);
+            }
+        }
+    }
+
+    public void checkPermissionPostNotifications() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            Log.i(TAG, "Право отправлять уведомления предоставлено");
+        } else {
+            if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.POST_NOTIFICATIONS)) {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{ Manifest.permission.POST_NOTIFICATIONS },
+                        REQUEST_PERMISSION_POST_NOTIFICATIONS);
             }
         }
     }
