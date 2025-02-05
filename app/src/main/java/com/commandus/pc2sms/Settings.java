@@ -1,5 +1,6 @@
 package com.commandus.pc2sms;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -29,6 +30,7 @@ public class Settings {
 
     private static final String PREF_LOGIN = "login";
     private static final String PREF_PASSWORD = "password";
+    @SuppressLint("StaticFieldLeak")
     private static Settings mSettings = null;
     private final Context mContext;
 
@@ -115,19 +117,16 @@ public class Settings {
                 case UnusedAppRestrictionsConstants.API_31:
                     // If the user doesn't start your app for a few months, the system will place restrictions on it
                     Log.e(TAG, "user doesn't start your app for a few months, the system will place restrictions on it");
-                    handleRestrictions(activity, appRestrictionsStatus);
+                    handleRestrictions(activity);
                     break;
 
             }
         }, ContextCompat.getMainExecutor(activity));
     }
 
-    static private void handleRestrictions(Activity activity, int appRestrictionsStatus) {
+    static private void handleRestrictions(Activity activity) {
         Intent intent = new Intent(activity, NotifySetPermissionActivity.class);
         activity.startActivity(intent);
-
-        // Intent intent2 = IntentCompat.createManageUnusedAppRestrictionsIntent(activity, activity.getPackageName());
-        // activity.startActivityForResult(intent2, MainActivity.REQUEST_PERMISSION_SLEEP_DISABLE);
     }
 
     public void setNoSleep(boolean enabled) {
@@ -138,11 +137,10 @@ public class Settings {
     }
 
     public boolean getRequestDisableSleep() {
-        return true;
+        return false;
     }
 
     public boolean getSimulateOn() {
         return true;
     }
 }
-

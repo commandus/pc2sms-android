@@ -35,16 +35,14 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.pc2sms.*;
 
 import io.grpc.ManagedChannel;
-import io.grpc.stub.StreamObserver;
 
 public class SendSMSService extends Service {
     public static final String ACTION_START = "start";
     public static final String ACTION_STOP = "stop";
     private static final String TAG = "send-sms-service";
-    private static final int SVC_ID = 4250053;
     private static final String NOTIFICATION_CHANNEL_ID = "pc2sms";
     private static final String NOTIFICATION_CHANNEL_NAME = "SMS sent from the PC";
-
+    private static final int NOTIFICATION_ID = 1;
     public boolean isListening = false;
 
     private Thread mThread;
@@ -72,6 +70,7 @@ public class SendSMSService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        mkNotificationChannel();
         Log.i(TAG, "Сервис отправки СМС создан.");
     }
 
@@ -113,18 +112,6 @@ public class SendSMSService extends Service {
         return super.onUnbind(intent);
     }
 
-    public void restartService() {
-        Log.i(TAG, "Запрос перезапуска.");
-        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                stopListenSMS();
-                startListenSMS();
-                Log.i(TAG, "Сервис отправки перезапустился.");
-            }
-        }, 10000);
-    }
-
     public void attach(ServiceListener listener) {
         Log.i(TAG, "Сервис отправки СМС подключил активность.");
         if (Looper.getMainLooper().getThread() != Thread.currentThread())
@@ -144,9 +131,7 @@ public class SendSMSService extends Service {
     ) {
         Log.d(TAG, message);
         final NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        Notification notification = mkNotification(message);
-        nm.notify(1, mkNotification(message));
-
+        nm.notify(NOTIFICATION_ID, mkNotification(message));
         synchronized (this) {
             if (listener != null) {
                 mainLooper.post(() -> {
@@ -181,6 +166,20 @@ public class SendSMSService extends Service {
             mThread = null;
         }
     }
+
+    private void mkNotificationChannel() {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                NotificationChannel nc = new NotificationChannel(NOTIFICATION_CHANNEL_ID, NOTIFICATION_CHANNEL_NAME,
+                        NotificationManager.IMPORTANCE_DEFAULT);
+                final NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                nm.createNotificationChannel(nc);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, e.toString());
+        }
+    }
+
     private boolean startFg() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
             Log.e(TAG, "No send SMS permission is granted, finish service");
@@ -188,19 +187,12 @@ public class SendSMSService extends Service {
             return false;
         }
         try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                NotificationChannel nc = new NotificationChannel(NOTIFICATION_CHANNEL_ID, NOTIFICATION_CHANNEL_NAME,
-                        NotificationManager.IMPORTANCE_LOW);
-                final NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-                nm.createNotificationChannel(nc);
-            }
-
-            Notification notification = mkNotification("Готов отправлять SMS");
+            Notification notification = mkNotification("Отправка SMS включена");
             int type = 0;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 type = ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL;
             }
-            ServiceCompat.startForeground(this, SVC_ID, notification, type);
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, type);
         } catch (Exception e) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
                     e instanceof ForegroundServiceStartNotAllowedException
@@ -224,9 +216,10 @@ public class SendSMSService extends Service {
                 .setChannelId(NOTIFICATION_CHANNEL_ID)
                 .setContentIntent(contentIntent)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setTicker(res.getString(R.string.unused_app_restrictions_granted))
+//              .setTicker(res.getString(R.string.unused_app_restrictions_granted))
                 .setContentTitle(res.getString(R.string.notification_title))
                 .setContentText(msg)
+                .setSilent(true)
                 .setOngoing(true)
                 .build();
     }
