@@ -18,6 +18,9 @@ import java.util.concurrent.ExecutionException;
 
 
 public class Settings {
+    public static final int NOTIFICATION_ID = 1;
+    public static final String NOTIFICATION_CHANNEL_ID = "pc2sms";
+    public static final String NOTIFICATION_CHANNEL_NAME = "SMS sent from the PC";
     // static final String APPLICATION_ID = "com.commandus.pc2sms";
     private static final String TAG = Settings.class.getSimpleName();
     static final String DEF_SERVICE_ADDRESS = "127.0.0.1";
@@ -142,5 +145,9 @@ public class Settings {
 
     public boolean getSimulateOn() {
         return true;
+    }
+
+    public boolean getUseWorker() {
+        return false;
     }
 }

@@ -229,12 +229,18 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void turnOn() {
-        Intent intent = new Intent(MainActivity.this, SendSMSService.class);
-        intent.setAction(SendSMSService.ACTION_START);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            getApplicationContext().startForegroundService(intent);
-        } else {
-            startService(intent);
+        if (mSettings.getUseWorker()) {
+            Log.i(TAG, "Worker");
+            SendSMSScheduler sendSMSScheduler = new SendSMSScheduler(this);
+            sendSMSScheduler.start();
+    } else {
+            Intent intent = new Intent(MainActivity.this, SendSMSService.class);
+            intent.setAction(SendSMSService.ACTION_START);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                getApplicationContext().startForegroundService(intent);
+            } else {
+                startService(intent);
+            }
         }
     }
 
