@@ -2,6 +2,7 @@ package com.commandus.pc2sms;
 
 import android.content.Context;
 
+import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.Operation;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
@@ -21,8 +22,8 @@ public class SendSMSScheduler {
         PeriodicWorkRequest sendSMSRequest =
             new PeriodicWorkRequest.Builder(SendSMSWorker.class, 15, TimeUnit.MINUTES)
             .build();
-        mOperation = WorkManager.getInstance(mContext)
-                .enqueue(sendSMSRequest);
+         mOperation = WorkManager.getInstance(mContext)
+                .enqueueUniquePeriodicWork(Settings.workName, ExistingPeriodicWorkPolicy.UPDATE, sendSMSRequest);
     }
 
     public void stop() {

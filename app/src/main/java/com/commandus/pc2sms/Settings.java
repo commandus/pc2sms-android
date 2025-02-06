@@ -33,6 +33,7 @@ public class Settings {
 
     private static final String PREF_LOGIN = "login";
     private static final String PREF_PASSWORD = "password";
+    public static String workName = "sendSms";
     @SuppressLint("StaticFieldLeak")
     private static Settings mSettings = null;
     private final Context mContext;
@@ -148,6 +149,6 @@ public class Settings {
     }
 
     public boolean getUseWorker() {
-        return false;
+        return true;
     }
 }

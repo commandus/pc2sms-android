@@ -18,7 +18,7 @@ public class SendSMSWorker extends Worker {
         super(context, workerParams);
         pc2Sms = new Pc2Sms(getApplicationContext());
         pc2Sms.mkNotificationChannel();
-        Log.i(TAG, "Сервис отправки СМС создан.");
+        Log.i(TAG, "Отработчик отправки СМС создан.");
     }
 
     @NonNull
@@ -27,10 +27,10 @@ public class SendSMSWorker extends Worker {
         try {
             setForegroundAsync(new ForegroundInfo(Settings.NOTIFICATION_ID, pc2Sms.mkNotification("Ожидание SMS к отправке")));
             pc2Sms.open();
-            Log.i(TAG, "Ожидание SMS к отправке");
+            Log.i(TAG, "Отрабатывается ожидание SMS к отправке");
             pc2Sms.listen();
         } catch (Throwable e) {
-            Log.e(TAG, "Ошибка работы с сервисом " + e.getMessage());
+            Log.e(TAG, "Ошибка отработки сервиса " + e.getMessage());
         }
         pc2Sms.close();
         return Result.success();
