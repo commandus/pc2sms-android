@@ -139,7 +139,11 @@ public class MainActivity extends AppCompatActivity
         Log.d(TAG, "service connect..");
         service = ((SendSMSService.SendSMSBinder) binder).getService();
         service.attach(this);
-        updateSwitchAllowSendSMS(service.isListening);
+        if (mSettings.getUseWorker()) {
+            updateSwitchAllowSendSMS(SendSMSScheduler.running(this));
+        } else {
+            updateSwitchAllowSendSMS(service.isListening);
+        }
     }
 
     private void updateSwitchAllowSendSMS(boolean isListening) {

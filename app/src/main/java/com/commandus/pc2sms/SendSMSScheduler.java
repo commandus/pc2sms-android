@@ -26,22 +26,20 @@ public class SendSMSScheduler {
                         .build();
 
         // mOperation = WorkManager.getInstance(mContext).enqueueUniquePeriodicWork(Settings.workName, ExistingPeriodicWorkPolicy.KEEP, sendSMSRequest)ж
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(Settings.workName, ExistingPeriodicWorkPolicy.KEEP, send1SMSRequest);
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(Settings.workName, ExistingPeriodicWorkPolicy.UPDATE, send1SMSRequest);
     }
 
     static public void stop(Context context) {
         WorkManager.getInstance(context).cancelAllWorkByTag(Send1SMSWorker.TAG);
     }
 
-    public boolean running(Context context) {
+    static public boolean running(Context context) {
         try {
             List<WorkInfo> l = WorkManager.getInstance(context).getWorkInfosByTag(Send1SMSWorker.TAG).get();
             if (l.isEmpty())
                 return false;
             return l.get(0).getState() != WorkInfo.State.CANCELLED;
-        } catch (ExecutionException e) {
-            Log.e(TAG, e.toString());
-        } catch (InterruptedException e) {
+        } catch (ExecutionException | InterruptedException e) {
             Log.e(TAG, e.toString());
         }
         return false;

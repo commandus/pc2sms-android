@@ -145,7 +145,7 @@ public class Settings {
     }
 
     public boolean getSimulateOn() {
-        return true;
+        return false;
     }
 
     public boolean getUseWorker() {
