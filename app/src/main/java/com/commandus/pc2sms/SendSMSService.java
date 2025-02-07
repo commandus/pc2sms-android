@@ -149,7 +149,7 @@ public class SendSMSService extends Service {
     }
 
     private void stopListenSMS() {
-        wakeUnlock();
+        wakeUpRelease();
         if (mThread != null) {
             mStopRequest = true;
             mThread.interrupt();
@@ -162,16 +162,24 @@ public class SendSMSService extends Service {
             PowerManager mgr = (PowerManager) context
                     .getSystemService(Context.POWER_SERVICE);
             mWakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_NAME);
-            mWakeLock.setReferenceCounted(true);
+            mWakeLock.setReferenceCounted(false);
         }
         return mWakeLock;
     }
-    private void wakeLock() {
+    private void wakeUpAcquire() {
+        try {
         getLock(getApplicationContext()).acquire(24*60*60*1000L);
+        } catch (RuntimeException e) {
+            Log.e(TAG, "Error acquire power lock: " + e.toString());
+        }
     }
 
-    private void wakeUnlock() {
-        getLock(getApplicationContext()).release();
+    private void wakeUpRelease() {
+        try {
+            getLock(getApplicationContext()).release();
+        } catch (RuntimeException e) {
+            Log.e(TAG, "Error release power lock: " + e.toString());
+        }
     }
 
     private boolean startFg() {
@@ -204,7 +212,7 @@ public class SendSMSService extends Service {
     public void startListenSMS() {
         if (mThread == null) {
             mThread = new Thread(() -> {
-                wakeLock();
+                wakeUpAcquire();
                 if (startFg()) {
                     mStopRequest = false;
                     listenSMS();

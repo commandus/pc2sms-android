@@ -126,6 +126,19 @@ public class Pc2Sms {
                 Log.i(TAG, "Отправлено СМС ");
             }
         }
+    }
 
+    public SMS sms() {
+        SMS sms = mStub.lastSMSToSend(mCredentials);
+        if (!sms.getPhone().isEmpty()) {
+            if (mSettings.getSimulateOn()) {
+                Log.i(TAG, "Как-бы отправлено СМС");
+                simulateSendSMS(sms);
+            } else {
+                sendSMS(sms);
+                Log.i(TAG, "Отправлено СМС");
+            }
+        }
+        return sms;
     }
 }

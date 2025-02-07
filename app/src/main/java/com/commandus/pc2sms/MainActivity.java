@@ -231,9 +231,8 @@ public class MainActivity extends AppCompatActivity
     private void turnOn() {
         if (mSettings.getUseWorker()) {
             Log.i(TAG, "Worker");
-            SendSMSScheduler sendSMSScheduler = new SendSMSScheduler(this);
-            sendSMSScheduler.start();
-    } else {
+            SendSMSScheduler.start(this);
+        } else {
             Intent intent = new Intent(MainActivity.this, SendSMSService.class);
             intent.setAction(SendSMSService.ACTION_START);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -245,13 +244,17 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void turnOff() {
-        Intent intent = new Intent(MainActivity.this, SendSMSService.class);
-        intent.setAction(SendSMSService.ACTION_STOP);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            getApplicationContext().startForegroundService(intent);
+        if (mSettings.getUseWorker()) {
+            SendSMSScheduler.stop(this);
         } else {
-            startService(intent);
+            Intent intent = new Intent(MainActivity.this, SendSMSService.class);
+            intent.setAction(SendSMSService.ACTION_STOP);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                getApplicationContext().startForegroundService(intent);
+            } else {
+                startService(intent);
+            }
         }
     }
 

@@ -3,6 +3,7 @@ package com.commandus.pc2sms;
 import android.content.Context;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
+import android.speech.tts.TextToSpeech;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -10,15 +11,29 @@ import androidx.work.ForegroundInfo;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
-public class SendSMSWorker extends Worker {
-    private Pc2Sms pc2Sms;
-    private static final String TAG = SendSMSWorker.class.getSimpleName();
+import java.util.Locale;
 
-    public SendSMSWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
+import io.grpc.pc2sms.SMS;
+
+public class Send1SMSWorker extends Worker {
+    private Pc2Sms pc2Sms;
+    public static final String TAG = Send1SMSWorker.class.getSimpleName();
+    private TextToSpeech tts;
+
+    public Send1SMSWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
         super(context, workerParams);
         pc2Sms = new Pc2Sms(getApplicationContext());
         pc2Sms.mkNotificationChannel();
         Log.i(TAG, "Отработчик отправки СМС создан.");
+
+        tts = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                if (status != TextToSpeech.ERROR) {
+                    tts.setLanguage(Locale.getDefault());
+                }
+            }
+        });
     }
 
     @NonNull
@@ -27,8 +42,15 @@ public class SendSMSWorker extends Worker {
         try {
             setForegroundAsync(new ForegroundInfo(Settings.NOTIFICATION_ID, pc2Sms.mkNotification("Ожидание SMS к отправке")));
             pc2Sms.open();
-            Log.i(TAG, "Отрабатывается ожидание SMS к отправке");
-            pc2Sms.listen();
+
+            while(true) {
+                Log.i(TAG, "Проверяем есть SMS к отправке");
+                SMS sms = pc2Sms.sms();
+                if (sms.getPhone().isEmpty())
+                    break;
+                tts.speak(sms.getMessage(), TextToSpeech.QUEUE_FLUSH, null);
+            }
+
         } catch (Throwable e) {
             Log.e(TAG, "Ошибка отработки сервиса " + e.getMessage());
         }
