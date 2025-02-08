@@ -95,7 +95,7 @@ public class Pc2Sms {
         PendingIntent contentIntent = PendingIntent.getActivity(mContext, 1,
             notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         Resources res = mContext.getResources();
-        return new NotificationCompat.Builder(mContext, TAG)
+        return new NotificationCompat.Builder(mContext, Settings.NOTIFICATION_CHANNEL_ID)
             .setChannelId(Settings.NOTIFICATION_CHANNEL_ID)
             .setContentIntent(contentIntent)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
