@@ -6,4 +6,5 @@
     <string name="label_go_to_settings">Перейти к настройкам</string>
     <string name="description_set_permission">Что нужно сделать в настройках</string>
     <string name="notification_title"><![CDATA[PC>SMS]]></string>
+    <string name="text_cancel">Отмена</string>
 </resources>

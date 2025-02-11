@@ -65,15 +65,15 @@ public class Pc2Sms {
     }
 
     private void simulateSendSMS(SMS value) {
-        log(value.getPhone() + "~ '" + value.getMessage());
+        notifyUser(value.getPhone() + "~ '" + value.getMessage());
     }
 
     private void sendSMS(SMS value) {
         try {
             sendSMSMessage(value);
-            log(value.getPhone() + ": '" + value.getMessage());
+            notifyUser(value.getPhone() + ": '" + value.getMessage());
         } catch (final Exception e) {
-            log("Не отправлено " + value.getPhone() + " " + value.getMessage() + " " + e.toString());
+            notifyUser("Не отправлено " + value.getPhone() + " " + value.getMessage() + " " + e.toString());
         }
     }
 
@@ -96,10 +96,8 @@ public class Pc2Sms {
             notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         Resources res = mContext.getResources();
         return new NotificationCompat.Builder(mContext, Settings.NOTIFICATION_CHANNEL_ID)
-            .setChannelId(Settings.NOTIFICATION_CHANNEL_ID)
             .setContentIntent(contentIntent)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-//              .setTicker(res.getString(R.string.unused_app_restrictions_granted))
             .setContentTitle(res.getString(R.string.notification_title))
             .setContentText(msg)
             .setSilent(true)
@@ -107,7 +105,7 @@ public class Pc2Sms {
             .build();
     }
 
-    private void log(
+    private void notifyUser(
         final String message
     ) {
         Log.d(TAG, message);

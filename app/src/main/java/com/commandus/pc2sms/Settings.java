@@ -141,14 +141,10 @@ public class Settings {
     }
 
     public boolean getRequestDisableSleep() {
-        return false;
+        return true;
     }
 
     public boolean getSimulateOn() {
         return false;
-    }
-
-    public boolean getUseWorker() {
-        return true;
     }
 }

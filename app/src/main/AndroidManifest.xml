@@ -13,11 +13,10 @@
     <!-- wake up -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- send SMS -->
-    <uses-permission android:name="android.permission.SEND_SMS" />
-    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+    <uses-permission android:name="android.permission.SEND_SMS"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application
         android:allowBackup="true"
@@ -40,7 +39,7 @@
 
         <service
             android:name=".SendSMSService"
-            android:foregroundServiceType="phoneCall"
+            android:foregroundServiceType="mediaPlayback"
             android:exported="false"
             android:enabled="true"
             />
@@ -60,5 +59,4 @@
             </intent-filter>
         </receiver>
     </application>
-
 </manifest>

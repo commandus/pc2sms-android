@@ -79,6 +79,7 @@ public class MainActivity extends AppCompatActivity
         editTextPassword.addTextChangedListener(mTextWatcher);
         switchAllowSendSMS.setOnCheckedChangeListener(mServiceOnListener);
 
+        serviceAction(SendSMSService.ACTION_INIT);
         checkPermissionPostNotifications();
     }
 
@@ -90,25 +91,24 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onStart() {
         super.onStart();
-        // Bind to LocalService
-        bindService(new Intent(this, SendSMSService.class), this, Context.BIND_AUTO_CREATE);
         if (mSettings.getRequestDisableSleep())
             Settings.requestDisableSleep(this);
+        // Bind to LocalService
+        bindService(new Intent(this, SendSMSService.class), this, Context.BIND_AUTO_CREATE);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        // Unbind from the service
         unbindService(this);
     }
     
     private void toggleService(boolean on) {
         mSettings.save();
         if (on) {
-            checkPermissionSendSMS();
+            checkPermissionSendSMSAndStart();
         } else {
-            turnOff();
+            serviceAction(SendSMSService.ACTION_STOP);
         }
     }
 
@@ -139,11 +139,7 @@ public class MainActivity extends AppCompatActivity
         Log.d(TAG, "service connect..");
         service = ((SendSMSService.SendSMSBinder) binder).getService();
         service.attach(this);
-        if (mSettings.getUseWorker()) {
-            updateSwitchAllowSendSMS(SendSMSScheduler.running(this));
-        } else {
-            updateSwitchAllowSendSMS(service.isListening);
-        }
+        updateSwitchAllowSendSMS(service.isListening);
     }
 
     private void updateSwitchAllowSendSMS(boolean isListening) {
@@ -158,11 +154,6 @@ public class MainActivity extends AppCompatActivity
     public void onServiceDisconnected(ComponentName name) {
         Log.d(TAG, "disconnected");
         service = null;
-    }
-
-    @Override
-    public void onSent(String value) {
-        addMessageLine(value);
     }
 
     private void addMessageLine(String value) {
@@ -188,12 +179,6 @@ public class MainActivity extends AppCompatActivity
     public void onInfo(String value) {
         addMessageLine(value);
     }
-
-    @Override
-    public void onError(Exception e) {
-        addMessageLine(e.getMessage());
-    }
-
     @Override
     public void onListen(boolean listen) {
         updateSwitchAllowSendSMS(listen);
@@ -218,11 +203,13 @@ public class MainActivity extends AppCompatActivity
         switch (requestCode) {
             case REQUEST_PERMISSION_SEND_SMS:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    turnOn();
+                    serviceAction(SendSMSService.ACTION_START);
+                } else {
+                    Toast.makeText(this, "Нет права отправлять SMS", Toast.LENGTH_LONG).show();
                 }
                 break;
             case REQUEST_PERMISSION_SLEEP_DISABLE:
-                Log.i(TAG, "Пользователь снял ограничения");
+                Log.i(TAG, "Пользователь снял наложенные системой ограничения после простоя");
                 break;
             case REQUEST_PERMISSION_POST_NOTIFICATIONS:
                 Log.i(TAG, "Пользователь дал право слать уведомления");
@@ -232,56 +219,30 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    private void turnOn() {
-        if (mSettings.getUseWorker()) {
-            Log.i(TAG, "Worker");
-            SendSMSScheduler.start(this);
+    private void serviceAction(String action) {
+        Intent intent = new Intent(MainActivity.this, SendSMSService.class);
+        intent.setAction(action);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getApplicationContext().startForegroundService(intent);
         } else {
-            Intent intent = new Intent(MainActivity.this, SendSMSService.class);
-            intent.setAction(SendSMSService.ACTION_START);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                getApplicationContext().startForegroundService(intent);
-            } else {
-                startService(intent);
-            }
+            startService(intent);
         }
     }
-
-    private void turnOff() {
-        if (mSettings.getUseWorker()) {
-            SendSMSScheduler.stop(this);
-        } else {
-            Intent intent = new Intent(MainActivity.this, SendSMSService.class);
-            intent.setAction(SendSMSService.ACTION_STOP);
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                getApplicationContext().startForegroundService(intent);
-            } else {
-                startService(intent);
-            }
-        }
-    }
-
-    public void checkPermissionSendSMS() {
+    public void checkPermissionSendSMSAndStart() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED) {
-            turnOn();
+            serviceAction(SendSMSService.ACTION_START);
         } else {
             if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.SEND_SMS)) {
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.SEND_SMS},
-                        REQUEST_PERMISSION_SEND_SMS);
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SEND_SMS}, REQUEST_PERMISSION_SEND_SMS);
             }
         }
     }
-
     public void checkPermissionPostNotifications() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
             Log.i(TAG, "Право отправлять уведомления предоставлено");
         } else {
             if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.POST_NOTIFICATIONS)) {
-                ActivityCompat.requestPermissions(this,
-                        new String[]{ Manifest.permission.POST_NOTIFICATIONS },
-                        REQUEST_PERMISSION_POST_NOTIFICATIONS);
+                ActivityCompat.requestPermissions(this, new String[]{ Manifest.permission.POST_NOTIFICATIONS }, REQUEST_PERMISSION_POST_NOTIFICATIONS);
             }
         }
     }

@@ -10,6 +10,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
+import android.media.MediaPlayer;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
@@ -28,14 +29,16 @@ import java.util.Objects;
 public class SendSMSService extends Service {
     public static final String ACTION_START = "start";
     public static final String ACTION_STOP = "stop";
+    public static final String ACTION_INIT = "init";
     private static final String TAG = SendSMSService.class.getSimpleName();
     private static final String WAKE_LOCK_NAME = "pc2sms:fs";
     private static PowerManager.WakeLock mWakeLock;
     public boolean isListening = false;
-
-    private Thread mThread;
-    private ServiceListener listener;
     private static boolean mStopRequest = false;
+    private static boolean mStopped = false;
+    private ServiceListener listener;
+    MediaPlayer mp = null;
+
     class SendSMSBinder extends Binder {
         SendSMSService getService() {
             return SendSMSService.this;
@@ -48,7 +51,7 @@ public class SendSMSService extends Service {
     private long callCounter = 0;
 
     private Pc2Sms pc2Sms;
-
+    private Thread mThread;
     /**
      * Lifecylce
      */
@@ -67,9 +70,11 @@ public class SendSMSService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-
         if (intent != null) {
             String a = intent.getAction();
+            if (Objects.equals(a, ACTION_INIT)) {
+                Log.i(TAG, "Сервис создан.");
+            }
             if (Objects.equals(a, ACTION_START)) {
                 Log.i(TAG, "Сервис отправки СМС стартовал.");
                 startListenSMS();
@@ -149,12 +154,28 @@ public class SendSMSService extends Service {
     }
 
     private void stopListenSMS() {
-        wakeUpRelease();
+        mStopRequest = true;
+        stopFg();
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R) { // Android 12+
+            if (mp != null)
+                mp.stop();
+        }
+        int c = 0;
+        while (!mStopped && c < 20) {
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Log.e(TAG, "Wait until stopped");
+            }
+            c++;
+        }
+
         if (mThread != null) {
-            mStopRequest = true;
             mThread.interrupt();
             mThread = null;
         }
+        wakeUpRelease();
+        stopSelf();
     }
 
     synchronized private static PowerManager.WakeLock getLock(Context context) {
@@ -168,7 +189,7 @@ public class SendSMSService extends Service {
     }
     private void wakeUpAcquire() {
         try {
-        getLock(getApplicationContext()).acquire(24*60*60*1000L);
+        getLock(this).acquire(24*60*60*1000L);
         } catch (RuntimeException e) {
             Log.e(TAG, "Error acquire power lock: " + e.toString());
         }
@@ -176,7 +197,7 @@ public class SendSMSService extends Service {
 
     private void wakeUpRelease() {
         try {
-            getLock(getApplicationContext()).release();
+            getLock(this).release();
         } catch (RuntimeException e) {
             Log.e(TAG, "Error release power lock: " + e.toString());
         }
@@ -192,7 +213,7 @@ public class SendSMSService extends Service {
             Notification notification = pc2Sms.mkNotification("Отправка SMS включена");
             int type = 0;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                type = ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL;
+                type = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK;
             }
             ServiceCompat.startForeground(this, Settings.NOTIFICATION_ID, notification, type);
         } catch (Exception e) {
@@ -209,12 +230,30 @@ public class SendSMSService extends Service {
         return true;
     }
 
+    private boolean stopFg() {
+        try {
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
+        } catch (Exception e) {
+            Log.e(TAG, "Stop foreground service error " + e.toString());
+            return false;
+        }
+        return true;
+    }
+
     public void startListenSMS() {
-        if (mThread == null) {
+        wakeUpAcquire();
+        if (startFg()) {
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R) { // Android 12+
+                mp = MediaPlayer.create(this, R.raw.silence);
+                if (mp != null) {
+                    mp.setLooping(true);
+                    mp.start();
+                }
+            }
+            mStopRequest = false;
             mThread = new Thread(() -> {
                 wakeUpAcquire();
                 if (startFg()) {
-                    mStopRequest = false;
                     listenSMS();
                 }
             });
@@ -222,44 +261,43 @@ public class SendSMSService extends Service {
         }
     }
 
-
     public void listenSMS() {
-        int failureCount = 0;
+        mStopped = false;
         Log.i(TAG, "Начинаем получать SMS..");
         indicateListenStatus(true);
         while (!mStopRequest) {
             try {
-                int sleepTime = 2 * failureCount * 1000;
-                if (sleepTime > 2 * 60 * 1000) {
-                    sleepTime = 1000; // 2'
-                    failureCount = 0;
-                }
-                Thread.sleep(sleepTime);
                 pc2Sms.open();
-/*
-                ResponseCount r = mStub.countSMSToSend(c);
-                Log.i(TAG, "countSMSToSend = " + Integer.toString(r.getCount()));
-                SMS sms = mStub.lastSMSToSend(c);
-                Log.i(TAG, "lastSMSToSend = " + sms.getPhone() + " " + sms.getMessage());
-*/
-                Log.i(TAG, "Ждём SMS..");
-                log("Вызов " + Long.toString(callCounter));
-                callCounter++;
+                /*
+                while (true) {
+                    Log.i(TAG, "проверяем есть ли SMS");
+                    SMS sms = pc2Sms.sms();
+                    if (sms.getPhone().isEmpty()) {
+                        Log.i(TAG, "SMS нет");
+                        break;
+                    } else {
+                        Log.i(TAG, "SMS есть");
+                    }
+                }
+                */
                 pc2Sms.listen();
+                // Thread.sleep(6 * 1000);
             } catch (Throwable e) {
                 if (mStopRequest) {
-                    Log.i(TAG, "Пользовтаель запросил остановку");
+                    Log.i(TAG, "Пользователь запросил остановку");
                 } else {
-                    failureCount++;
                     Log.e(TAG, "Ошибка работы с сервисом " + e.getMessage());
                 }
             }
-            pc2Sms.close();
+            try {
+                pc2Sms.close();
+            } catch (Exception ignore) {
+
+            }
         }
+        mStopped = true;
         Log.i(TAG, "Завершена отправка SMS");
-        mStopRequest = false;
         indicateListenStatus(false);
-        mThread = null;
     }
 
     @Override
